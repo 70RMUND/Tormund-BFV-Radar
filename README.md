@@ -29,6 +29,6 @@ External Radar Mod for Battlefield V using Python and PyGame
   
   ## Demos:
   
-  ![Alt text](/70RMUND/Tormund-BFV-Radar/blob/master/demo/operations.png?raw=true "Operations")
-  ![Alt text](/70RMUND/Tormund-BFV-Radar/blob/master/demo/firestorm.png?raw=true "Firestorm during airdrop")
-  ![Alt text](/70RMUND/Tormund-BFV-Radar/blob/master/demo/firestorm2.png?raw=true "Firestorm on the ground")
+  ![Alt text](/demo/operations.png?raw=true "Operations")
+  ![Alt text](/demo/firestorm.png?raw=true "Firestorm during airdrop")
+  ![Alt text](/demo/firestorm2.png?raw=true "Firestorm on the ground")
