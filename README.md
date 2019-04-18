@@ -1,6 +1,14 @@
 # Tormund-BFV-Radar
 External Radar Mod for Battlefield V using Python and PyGame
 
+# Installation
+  - Install Python 3.6.8 64-bit
+  - Make sure its added to your path
+  - go into your clone directory in commandline
+  - pip.exe install -r requirements.txt (to install PyGame)
+  - Run BFV.exe
+  - python.exe .\Radar.py 1920 1200
+
 ## Features:
   - Radar follows your local player perspective
   - Not internal to BFV so game cannot take screenshots
