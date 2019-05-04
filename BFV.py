@@ -16,31 +16,29 @@ GameRenderer_RenderView = 0x60 #
 RenderView_ViewMatrix = 0x2F0 #
 HC_Health = 0x20
 HC_MaxHealth = 0x24
-CVE_TeamID = 0x1c4
-CSE_HealthComponent = 0x278 #
+CVE_TeamID = 0x1c4+0x10
+CSE_HealthComponent = 0x288 #
 CCPE_Transform = 0x3c0
-CSE_TeamId = 0x1C48
-CSE_Player = 0x308
+CSE_Player = 0x320
 CVE_VehicleEntityData = 0x30
 VED_ControllableType = 0x1E8
-CCAT_ActiveTrigger = 0xD7C
+CCAT_ActiveTrigger = 0xD84
 CCAT_TriggerData = 0x28
 CCAT_ppAreaBounds = 0x60
-VVSD_PointsArray = 0x18
-OM_UIAllObjectivesData = 0x58
-AOD_ObjectiveArray = 0x10
-OD_Transform = 0x20
-OD_ShortName = 0x18
-OD_LongName = 0x70
-OD_TeamState = 0x78
-OD_ControlledState = 0x7C
+VVSD_PointsArray = 0x20
+AOD_ObjectiveArray = 0x18
+OD_Transform = 0x30
+OD_ShortName = 0x20
+OD_LongName = 0x80
+OD_TeamState = 0x88
+OD_ControlledState = 0x8C
 
 global offsets
 offsets = {}
 
 def find_typeinfo(name,first,pHandle):
 	mem = MemAccess(pHandle)
-	typeinfo = mem[first].read_uint64(0)
+	typeinfo = first
 	while (typeinfo):
 		if mem[typeinfo](0).read_string(0) == name:
 			return typeinfo
@@ -57,56 +55,81 @@ def build_offsets(pHandle):
 	offsets["CODECAVE_ADDR"] = get_codecave(pHandle)
 	offsets["NODICE_MGR"] = offsets["CODECAVE_ADDR"] - 0x8
 	addr = x.scan("0F 84 ?? ?? ?? ?? FF 15 ?? ?? ?? ?? 3B 05 ?? ?? ?? ??")
+	print("[+] GAME_GET_CURRENT_THREAD_ID      = %x"%(addr))
 	offsets["GAME_GET_CURRENT_THREAD_ID"] = mem[addr].read_int32(8)+addr+8+4
 	offsets["GAME_APPROVED_THREAD"] = mem[addr].read_int32(14)+addr+14+4
 	offsets["ORIGINAL_GTID_FUNC"] = offsets["CODECAVE_ADDR"] - 0x10
 	addr = x.scan("E8 ? ? ? ? 48 8B F8 48 89 45 B8 84 DB")
+	print("[+] GET_LOCAL_PLAYER_FUNC           = %x"%(addr))
 	offsets["GET_LOCAL_PLAYER_FUNC"] = mem[addr].read_int32(1)+addr+1+4
 	addr = x.scan("E8 ? ? ? ? 0F B6 D8 88 45 67 48 8D 4D C7")
+	print("[+] THREAD_CONTROL_FUNC             = %x"%(addr))
 	jfunc = mem[addr].read_uint32(1)+addr+1+4
 	offsets["THREAD_CONTROL_FUNC"] = mem[jfunc].read_int32(1)+jfunc+1+4
 	addr = x.scan("48 8B 05 ? ? ? ? 48 85 C0 74 26 4C 8B 40 40")
+	print("[+] CLIENT_GAME_CONTEXT             = %x"%(addr))
 	offsets["CLIENT_GAME_CONTEXT"] = mem[addr].read_int32(3)+addr+3+4
 	addr = x.scan("E8 ? ? ? ? 48 8B F0 48 8D 54 24 ? 48 8B 4B 28")
+	print("[+] GET_PLAYER_BY_INDEX_FUNC        = %x"%(addr))
 	offsets["GET_PLAYER_BY_INDEX_FUNC"] = mem[addr].read_int32(1)+addr+1+4
 	addr = x.scan("48 85 D2 48 0F 45 CA 48 FF 25 ? ? ? ?")
+	print("[+] GAME_MALLOC                     = %x"%(addr))
 	offsets["GAME_MALLOC"] = mem[addr].read_int32(10)+addr+10+4
 	addr = x.scan("48 8B 53 08 48 8B 0B FF 15 ? ? ? ? 48 8B 5C 24")
+	print("[+] GAME_VIRTUALPROTECT             = %x"%(addr))
 	offsets["GAME_VIRTUALPROTECT"] = mem[addr].read_int32(9)+addr+9+4
 	addr = x.scan("48 8B 0D ? ? ? ? 33 D2 48 8B 19")
+	print("[+] DX11RENDERER                    = %x"%(addr))
 	offsets["DX11RENDERER"] = mem[addr].read_int32(3)+addr+3+4
 	addr = x.scan("E8 ? ? ? ? 48 8B D8 48 85 C0 0F 84 ? ? ? ? F3 0F 10 75 ?")
+	print("[+] GET_ENTITY_DATA                 = %x"%(addr))
 	offsets["GET_ENTITY_DATA"] = mem[addr].read_int32(1)+addr+1+4
 	addr = x.scan("48 8B 0D ? ? ? ? 48 8B 01 B2 01 FF 50")
+	print("[+] GAMERENDERER                    = %x"%(addr))
 	offsets["GAMERENDERER"] = mem[addr].read_int32(3)+addr+3+4
 	addr = x.scan("48 8B 05 ?? ?? ?? ?? 31 D2 48 85 C0 74")
-	offsets["FIRST_TYPEINFO"] = mem[addr].read_int32(3)+addr+3+4
+	print("[+] FIRST_TYPEINFO                  = %x"%(0x14495A568))
+	offsets["FIRST_TYPEINFO"] = 0x14495A568 #%mem[addr].read_int32(3)+addr+3+4
 	addr = x.scan("FF 0D ?? ?? ?? ?? 48 89 CA 48 8B 1D ?? ?? ?? ??")
+	print("[+] OBJECTIVE_MANAGER               = %x"%(addr))
 	offsets["OBJECTIVE_MANAGER"] = mem[addr].read_int32(12)+addr+12+4
 	addr = x.scan("4C 8B F2 48 8B D9 48 8B 35 ? ? ? ? 48 85 F6")
+	print("[+] CLIENTSHRINKINGPLAYAREA         = %x"%(addr))
 	offsets["CLIENTSHRINKINGPLAYAREA"] = mem[addr].read_int32(9)+addr+9+4
-	addr = find_typeinfo("ClientSoldierEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientSoldierEntity"] = addr
-	addr = find_typeinfo("ClientVehicleEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientVehicleEntity"] = addr
-	addr = find_typeinfo("ClientSupplySphereEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientSupplySphereEntity"] = addr
-	addr = find_typeinfo("ClientCombatAreaTriggerEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientCombatAreaTriggerEntity"] = addr  
-	addr = find_typeinfo("ClientExplosionPackEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientExplosionPackEntity"] = addr
-	addr = find_typeinfo("ClientProxyGrenadeEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientProxyGrenadeEntity"] = addr
-	addr = find_typeinfo("ClientGrenadeEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientGrenadeEntity"] = addr
-	addr = find_typeinfo("ClientInteractableGrenadeEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientInteractableGrenadeEntity"] = addr 
-	addr = find_typeinfo("ClientCapturePointEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientCapturePointEntity"] = addr
-	addr = find_typeinfo("ClientLootItemEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientLootItemEntity"] = addr
-	addr = find_typeinfo("ClientArmorVestLootItemEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientArmorVestLootItemEntity"] = addr
+	
+	#addr = find_typeinfo("ClientSoldierEntity",offsets["FIRST_TYPEINFO"],pHandle)
+	offsets["ClientSoldierEntity"] = 0x145173B70#addr
+	print("[+] ClientSoldierEntity             = %x"%(offsets["ClientSoldierEntity"]))
+	#addr = find_typeinfo("ClientVehicleEntity",offsets["FIRST_TYPEINFO"],pHandle)
+	offsets["ClientVehicleEntity"] = 0x145082CA0 #addr
+	print("[+] ClientVehicleEntity             = %x"%(offsets["ClientVehicleEntity"]))
+	#addr = find_typeinfo("ClientSupplySphereEntity",offsets["FIRST_TYPEINFO"],pHandle)
+	offsets["ClientSupplySphereEntity"] = 0x144E94DA0#addr
+	print("[+] ClientSupplySphereEntity        = %x"%(offsets["ClientVehicleEntity"]))
+	#addr = find_typeinfo("ClientCombatAreaTriggerEntity",offsets["FIRST_TYPEINFO"],pHandle)
+	offsets["ClientCombatAreaTriggerEntity"] = 0x1450837D0# addr
+	print("[+] ClientCombatAreaTriggerEntity   = %x"%(offsets["ClientCombatAreaTriggerEntity"]))
+	#addr = find_typeinfo("ClientExplosionPackEntity",offsets["FIRST_TYPEINFO"],pHandle)
+	offsets["ClientExplosionPackEntity"] = 0x0145179CB0#addr
+	print("[+] ClientExplosionPackEntity       = %x"%(offsets["ClientExplosionPackEntity"]))
+	#addr = find_typeinfo("ClientProxyGrenadeEntity",offsets["FIRST_TYPEINFO"],pHandle)
+	offsets["ClientProxyGrenadeEntity"] = 0x0145179980#addr
+	print("[+] ClientProxyGrenadeEntity        = %x"%(offsets["ClientProxyGrenadeEntity"]))
+	#addr = find_typeinfo("ClientGrenadeEntity",offsets["FIRST_TYPEINFO"],pHandle)
+	offsets["ClientGrenadeEntity"] = 0x145179BA0#add
+	print("[+] ClientGrenadeEntity             = %x"%(offsets["ClientGrenadeEntity"]))
+	#addr = find_typeinfo("ClientInteractableGrenadeEntity",offsets["FIRST_TYPEINFO"],pHandle)
+	offsets["ClientInteractableGrenadeEntity"] = 0x144E9E210#addr 
+	print("[+] ClientInteractableGrenadeEntity = %x"%(offsets["ClientInteractableGrenadeEntity"]))
+	#addr = find_typeinfo("ClientCapturePointEntity",offsets["FIRST_TYPEINFO"],pHandle)
+	offsets["ClientCapturePointEntity"] = 0x144E88070#addr
+	print("[+] ClientCapturePointEntity        = %x"%(offsets["ClientCapturePointEntity"]))
+	#addr = find_typeinfo("ClientLootItemEntity",offsets["FIRST_TYPEINFO"],pHandle)
+	offsets["ClientLootItemEntity"] = 0x144F1DEC0#addr
+	print("[+] ClientLootItemEntity            = %x"%(offsets["ClientLootItemEntity"]))
+	#addr = find_typeinfo("ClientArmorVestLootItemEntity",offsets["FIRST_TYPEINFO"],pHandle)
+	offsets["ClientArmorVestLootItemEntity"] = 0x144F1F1E0#addr
+	print("[+] ClientArmorVestLootItemEntity   = %x"%(offsets["ClientArmorVestLootItemEntity"]))
 	print ("[+] Done")
 	return offsets
 
@@ -147,7 +170,7 @@ def GetEncKey(pHandle,typeinfo):
 	api._cache_en = False
 	global keystore
 	mem = MemAccess(pHandle)
-	if (mem[typeinfo].read_uint64(0x68) == 0):
+	if (mem[typeinfo].read_uint64(0x88) == 0):
 		api._cache_en = cache_en
 		return 0
 	try:
@@ -157,16 +180,20 @@ def GetEncKey(pHandle,typeinfo):
 	if typeinfo in keystore:
 		api._cache_en = cache_en
 		return keystore[typeinfo]
-	
+
 	mem[offsets["NODICE_MGR"]](0)(NDM_TYPEINFOLIST).write_uint64(0x0,0x0)
 	mem[offsets["NODICE_MGR"]](0)(NDM_ENTITYKEYLIST).write_uint64(0x0,0x0)
 	while (mem[offsets["NODICE_MGR"]](0)(NDM_ENTITYKEYLIST).read_uint64(0x0) != 0):
 		pass
+
 	mem[offsets["NODICE_MGR"]](0)(NDM_TYPEINFOLIST).write_uint64(typeinfo,0x0)
 	while (mem[offsets["NODICE_MGR"]](0)(NDM_ENTITYKEYLIST).read_uint64(0x0) == 0):
 		pass
+
 	keystore[typeinfo] = mem[offsets["NODICE_MGR"]](0)(NDM_ENTITYKEYLIST).read_uint64(0x0)
 	api._cache_en = cache_en
+	
+	print ("[+] Typeinfo: 0x%x Encryption Key: 0x%x"% (typeinfo,keystore[typeinfo]))
 	return keystore[typeinfo]
 	
 def isValid(addr):
@@ -175,8 +202,9 @@ def isValid(addr):
 def GetEntityList(pHandle,typeinfo,flink_offset=0x80):
 	elist = []
 	mem = MemAccess(pHandle)
-	flink = mem[typeinfo].read_uint64(0x68)
+	flink = mem[typeinfo].read_uint64(0x88)
 	key = GetEncKey(pHandle,typeinfo)
+	
 	
 	while (flink):
 		ent = decrypt_ptr(flink,key)
@@ -190,7 +218,7 @@ def GetNextEntity(pHandle,Ptr,typeinfo,flink_offset=0x80):
 	mem = MemAccess(pHandle)
 	key = GetEncKey(pHandle,typeinfo)
 	if Ptr == 0:
-		flink = mem[typeinfo].read_uint64(0x68)
+		flink = mem[typeinfo].read_uint64(0x88)
 	else:
 		flink = mem[Ptr].read_uint64(flink_offset)
 		
@@ -327,6 +355,7 @@ class GameData():
 		self.boundslimits = None# x low, x high, y low, y high
 		self.keydown == False
 		self.circledata = None
+		self.testpoint = False
 	def AddSoldier(self,soldier):
 		self.soldiers += [soldier]
 	def ClearSoldiers(self):
@@ -423,7 +452,20 @@ def Process(pHandle,cnt):
 	except NameError:
 		g_gamedata = GameData()
 
-	
+	def GetEntityVec4(pHandle,Entity):
+		mem = MemAccess(pHandle)
+		flags = mem[Entity](0x38).read_uint64(0x8)
+		if flags == None:
+			return 0
+		_9 = (flags>>8)&0xFF
+		_10 = (flags>>16)&0xFF
+		_off = (0x20*(_10+(2*_9)))+0x10
+		v4 = [mem[Entity](0x38).read_uint32(_off+0x30),
+		mem[Entity](0x38).read_uint32(_off+0x34),
+		mem[Entity](0x38).read_uint32(_off+0x38),
+		mem[Entity](0x38).read_uint32(_off+0x40)]
+		return v4
+		
 	# Get Local Info
 	MyPlayer = mem[offsets["NODICE_MGR"]]()(NDM_LOCALPLAYER).me()
 	MySoldier = mem[MyPlayer].weakptr(ClientPlayer_Soldier).me()
@@ -431,6 +473,7 @@ def Process(pHandle,cnt):
 	MyVehicle = mem[MyPlayer].weakptr(ClientPlayer_Vehicle).me()
 	MyViewmatrix = mem[offsets["GAMERENDERER"]]()(GameRenderer_RenderView).read_mat4(RenderView_ViewMatrix)
 	MyTransform = GetEntityTransform(pHandle,MySoldier)
+	MyPos = GetEntityVec4(pHandle,MySoldier)
 
 	g_gamedata.myplayer = MyPlayer
 	g_gamedata.mysoldier = MySoldier
@@ -448,7 +491,7 @@ def Process(pHandle,cnt):
 	# Render Soldiers
 	g_gamedata.ClearSoldiers()
 	for Soldier in GetEntityList(pHandle,offsets["ClientSoldierEntity"],0x80):
-
+		
 		# if you are me, skip
 		if (Soldier == MySoldier):
 			continue
@@ -462,8 +505,9 @@ def Process(pHandle,cnt):
 		if ((MyVehicle>0) and Vehicle == MyVehicle):
 			continue
 			
-		TeamId = mem[Soldier](CSE_Player).read_uint32(CSE_TeamId)
+		TeamId = mem[Soldier](CSE_Player).read_uint32(ClientPlayer_TeamID)
 		Transform = GetEntityTransform(pHandle,Soldier)
+		
 		if Transform == 0:
 			continue
 		
@@ -493,44 +537,43 @@ def Process(pHandle,cnt):
 		Transform = GetEntityTransform(pHandle,Vehicle)
 		if Transform == 0:
 			continue
-		
+
 		VehicleData = GameVehicleData()
 		VehicleData.ownership = 0
 		VehicleData.transform = Transform
 		VehicleData.pointer = Vehicle
 		VehicleData.vehicletype = mem[Vehicle](CVE_VehicleEntityData).read_string(VED_ControllableType)
-		VehicleData.teamid = mem[Vehicle].read_uint32(CVE_TeamID)
+		VehicleData.teamid = (mem[Vehicle].read_uint32(CVE_TeamID))
 		
 		g_gamedata.AddVehicle(VehicleData)
 	
 	# Get all objectives by accessing ObjectiveManager and iterating all ObjectiveData
 	g_gamedata.ClearUIObjectives()
-	UIObjArray = mem[offsets["OBJECTIVE_MANAGER"]](0x0)(OM_UIAllObjectivesData).read_uint64(AOD_ObjectiveArray)
-	if (UIObjArray):
-		size = mem[UIObjArray-0x4].read_uint32(0)
-		for i in range(size):
-			UIObj = mem[UIObjArray+(i*8)](0).me()
-			Transform = mem[UIObj].read_mat4(OD_Transform)
-			ShortName = mem[UIObj].read_string(OD_ShortName)
-			LongName = mem[UIObj].read_string(OD_LongName)
-			TeamState = mem[UIObj].read_uint32(OD_TeamState)
-			ControlledState = mem[UIObj].read_uint32(OD_ControlledState)
+	i=0
+	while (1):
+		UIObj = mem[offsets["OBJECTIVE_MANAGER"]](0)(0x38).read_uint64(i*8)
+		i+=1
+		if mem[UIObj].read_uint64(0) != 0x143750D38:
+			break
+		
+		Transform = mem[UIObj].read_mat4(OD_Transform)
+		ShortName = mem[UIObj].read_string(OD_ShortName)
+		LongName = mem[UIObj].read_string(OD_LongName)
+		TeamState = mem[UIObj].read_uint32(OD_TeamState)
+		ControlledState = mem[UIObj].read_uint32(OD_ControlledState)
+		
+		UIObjective = UIObjectiveData()	
+		UIObjective.pointer = UIObj
+		UIObjective.transform = Transform
+		UIObjective.shortname = ShortName
+		UIObjective.longname = LongName
+		UIObjective.teamstate = TeamState
+		UIObjective.controlledstate = ControlledState
+		g_gamedata.AddUIObjective(UIObjective)
+		
+
 			
-			UIObjective = UIObjectiveData()	
-			UIObjective.pointer = UIObj
-			UIObjective.transform = Transform
-			UIObjective.shortname = ShortName
-			UIObjective.longname = LongName
-			UIObjective.teamstate = TeamState
-			UIObjective.controlledstate = ControlledState
 			
-			for CapturePoint in g_gamedata.capturepoints:
-				if ((CapturePoint.transform[3][0] == Transform[3][0]) and
-					(CapturePoint.transform[3][2] == Transform[3][2])):
-					CapturePoint.objectivedata = UIObjective
-					UIObjective.capturepoint = CapturePoint
-			
-			g_gamedata.AddUIObjective(UIObjective)
 
 	# Get the shape of the map bounds by iterating ClientCombatAreaTriggerEntity and reading bounds points
 	ST_UPDATE = 0
@@ -539,8 +582,8 @@ def Process(pHandle,cnt):
 	for ClientCombatAreaTrigger in GetEntityList(pHandle,offsets["ClientCombatAreaTriggerEntity"],0xD40):
 		ActiveTrigger = mem[ClientCombatAreaTrigger].read_uint32(CCAT_ActiveTrigger)
 		ClientCombatAreaTriggerData = mem[ClientCombatAreaTrigger](CCAT_TriggerData).me()
-		Team = mem[ClientCombatAreaTriggerData].read_uint32(0x20)
-		IsTeamSpecific = mem[ClientCombatAreaTriggerData].read_uint8(0x25)
+		Team = mem[ClientCombatAreaTriggerData].read_uint32(0x28)
+		IsTeamSpecific = mem[ClientCombatAreaTriggerData].read_uint8(0x2D)
 		updateShape = True
 		
 		ShapeData = mem[ClientCombatAreaTrigger](CCAT_ppAreaBounds)(0x0).me()
@@ -583,7 +626,7 @@ def Process(pHandle,cnt):
 	g_gamedata.ClearExplosives()
 	for Explosive in GetEntityList(pHandle,offsets["ClientExplosionPackEntity"],0x80):
 		Transform = GetEntityTransform(pHandle,Explosive)
-		Team = mem[Explosive].read_uint32(0x4c0)
+		Team = mem[Explosive].read_uint32(0x4d0)
 		ExplosiveData = GameExplosiveData()
 		ExplosiveData.transform = Transform
 		ExplosiveData.teamid = Team
@@ -601,13 +644,15 @@ def Process(pHandle,cnt):
 	g_gamedata.ClearSupplies()
 	for Supply in GetEntityList(pHandle,offsets["ClientSupplySphereEntity"],0xa8):
 		SupplyName = mem[Supply](0x30).read_string(0xB8)
-		pos = mem[Supply].read_vec4(0xE0)
+		pos = mem[Supply].read_vec4(0xF0)
 		SupplyData = GameSupplyData()
 		SupplyData.transform = [[0,0,0,0],[0,0,0,0],[0,0,0,0],pos]
 		SupplyData.name = SupplyName
 		SupplyData.pointer = Supply
 		g_gamedata.AddSupply(SupplyData)
 		
+		
+
 	# This pointer only exists if we are in FireStorm mode
 	ShrinkingPlayArea = mem[offsets["CLIENTSHRINKINGPLAYAREA"]](0).me()
 	g_gamedata.circledata = None
@@ -626,17 +671,17 @@ def Process(pHandle,cnt):
 			g_gamedata.LastLootPtr = GetNextEntity(pHandle,g_gamedata.LastLootPtr,offsets["ClientLootItemEntity"],flink_offset=0x80)
 			if (g_gamedata.LastLootPtr!=0):
 				if g_gamedata.LastLootPtr not in g_gamedata.loots:
-					if (mem[g_gamedata.LastLootPtr].read_int32(0x1B8) != -1):
+					if (mem[g_gamedata.LastLootPtr].read_int32(0x1C8) != -1):
 						Loot = GameLootData()
-						Loot.LootName = mem[g_gamedata.LastLootPtr].read_string(0x5F0)
+						Loot.LootName = mem[g_gamedata.LastLootPtr].read_string(0x600)
 						Loot.LootType = mem[g_gamedata.LastLootPtr](0x30).read_uint32(0x108)
-						Loot.ItemName = mem[g_gamedata.LastLootPtr](0x780)(0x8).read_string(0x180)
-						if (Loot.LootName[-5:] != "Tier1"):
-							Loot.transform = GetEntityTransform(pHandle,g_gamedata.LastLootPtr)
-							g_gamedata.loots[g_gamedata.LastLootPtr] = Loot
+						Loot.ItemName = mem[g_gamedata.LastLootPtr](0x30)(0xF0)(0x0).read_string(0x18)
+						
+						Loot.transform = GetEntityTransform(pHandle,g_gamedata.LastLootPtr)
+						g_gamedata.loots[g_gamedata.LastLootPtr] = Loot
 				else:
 					g_gamedata.loots[g_gamedata.LastLootPtr].AccessCount += 1
-					if (mem[g_gamedata.LastLootPtr].read_int32(0x1B8) == -1):
+					if (mem[g_gamedata.LastLootPtr].read_int32(0x1C8) == -1):
 						del g_gamedata.loots[g_gamedata.LastLootPtr]
 					elif (g_gamedata.loots[g_gamedata.LastLootPtr].AccessCount >= 50):
 						loots = copy.copy(g_gamedata.loots)
@@ -653,18 +698,18 @@ def Process(pHandle,cnt):
 			g_gamedata.LastVestLootPtr = GetNextEntity(pHandle,g_gamedata.LastVestLootPtr,offsets["ClientArmorVestLootItemEntity"],flink_offset=0x80)
 			if (g_gamedata.LastVestLootPtr!=0):
 				if g_gamedata.LastVestLootPtr not in g_gamedata.loots:
-					if (mem[g_gamedata.LastVestLootPtr].read_int32(0x1B8) != -1):
+					if (mem[g_gamedata.LastVestLootPtr].read_int32(0x1C8) != -1):
 						Loot = GameLootData()
-						Loot.LootName = mem[g_gamedata.LastVestLootPtr].read_string(0x5F0)
+						Loot.LootName = mem[g_gamedata.LastVestLootPtr].read_string(0x600)
 						Loot.VestEntity = True
-						Loot.ItemName = mem[g_gamedata.LastVestLootPtr](0x780)(0x8).read_string(0x180)
-						if (Loot.LootName[-5:] != "Tier1"):
-							Loot.transform = GetEntityTransform(pHandle,g_gamedata.LastVestLootPtr)
-							g_gamedata.loots[g_gamedata.LastVestLootPtr] = Loot
+						Loot.ItemName = mem[g_gamedata.LastLootPtr](0x30)(0xF0)(0x0).read_string(0x18)
+						Loot.transform = GetEntityTransform(pHandle,g_gamedata.LastVestLootPtr)
+						g_gamedata.loots[g_gamedata.LastVestLootPtr] = Loot
 				else:
 					g_gamedata.loots[g_gamedata.LastVestLootPtr].AccessCount += 1
-					if (mem[g_gamedata.LastVestLootPtr].read_int32(0x1B8) == -1):
+					if (mem[g_gamedata.LastVestLootPtr].read_int32(0x1C8) == -1):
 						del g_gamedata.loots[g_gamedata.LastVestLootPtr]
+
 
 def initialize(pHandle):
 	global offsets
@@ -676,7 +721,7 @@ def initialize(pHandle):
 	
 	shellcode  = b"\x48\x81\xEC\xC8\x00\x00\x00\x48\xB8\xF0\x41\xEC\x42\x01\x00\x00"
 	shellcode += b"\x00\xFF\x10\x89\x44\x24\x38\x48\xB8\x88\x52\x4B\x44\x01\x00\x00"
-	shellcode += b"\x00\x8B\x4C\x24\x38\x39\x08\x74\x09\x8B\x44\x24\x38\xE9\x7F\x03"
+	shellcode += b"\x00\x8B\x4C\x24\x38\x39\x08\x74\x09\x8B\x44\x24\x38\xE9\x85\x03"
 	shellcode += b"\x00\x00\x48\xB8\x90\xF2\x63\x41\x01\x00\x00\x00\x48\x89\x84\x24"
 	shellcode += b"\x80\x00\x00\x00\x48\xB8\x40\xD8\xB3\x47\x01\x00\x00\x00\x48\x89"
 	shellcode += b"\x44\x24\x68\x48\xB8\x90\x00\x64\x41\x01\x00\x00\x00\x48\x89\x84"
@@ -686,12 +731,12 @@ def initialize(pHandle):
 	shellcode += b"\x00\x00\x00\x48\x8B\x00\x48\x89\x44\x24\x58\x48\xB8\xD0\xD7\x4A"
 	shellcode += b"\x44\x01\x00\x00\x00\x48\x8B\x00\x48\x8B\x40\x68\x48\x89\x44\x24"
 	shellcode += b"\x60\x48\xB8\xF8\x41\xEC\x42\x01\x00\x00\x00\x48\x8B\x00\x48\x89"
-	shellcode += b"\x44\x24\x30\x48\x83\x7C\x24\x30\x00\x0F\x84\xE1\x01\x00\x00\x48"
-	shellcode += b"\x8B\x44\x24\x30\x83\x78\x04\x00\x74\x09\x8B\x44\x24\x38\xE9\xCE"
+	shellcode += b"\x44\x24\x30\x48\x83\x7C\x24\x30\x00\x0F\x84\xE7\x01\x00\x00\x48"
+	shellcode += b"\x8B\x44\x24\x30\x83\x78\x04\x00\x74\x09\x8B\x44\x24\x38\xE9\xD4"
 	shellcode += b"\x02\x00\x00\x48\xB8\xD8\x2D\x52\x44\x01\x00\x00\x00\x48\x8B\x00"
 	shellcode += b"\x48\x89\x44\x24\x78\x48\x8B\x44\x24\x78\x8B\x80\x08\x09\x00\x00"
 	shellcode += b"\x89\x44\x24\x48\x48\x8B\x44\x24\x30\x8B\x00\x39\x44\x24\x48\x75"
-	shellcode += b"\x09\x8B\x44\x24\x38\xE9\x97\x02\x00\x00\x48\x8B\x44\x24\x30\x8B"
+	shellcode += b"\x09\x8B\x44\x24\x38\xE9\x9D\x02\x00\x00\x48\x8B\x44\x24\x30\x8B"
 	shellcode += b"\x4C\x24\x48\x89\x08\x48\x8B\x44\x24\x30\xC7\x40\x04\x01\x00\x00"
 	shellcode += b"\x00\xB1\x01\xFF\x54\x24\x68\x88\x44\x24\x20\x33\xD2\x48\x8B\x4C"
 	shellcode += b"\x24\x60\xFF\x94\x24\x80\x00\x00\x00\x48\x8B\x4C\x24\x30\x48\x89"
@@ -706,34 +751,34 @@ def initialize(pHandle):
 	shellcode += b"\xC1\x00\x00\x00\x00\xEB\xD7\xEB\x02\xEB\x81\x0F\xB6\x44\x24\x20"
 	shellcode += b"\x85\xC0\x74\x06\x33\xC9\xFF\x54\x24\x68\xC7\x44\x24\x28\x00\x00"
 	shellcode += b"\x00\x00\xEB\x0A\x8B\x44\x24\x28\xFF\xC0\x89\x44\x24\x28\x83\x7C"
-	shellcode += b"\x24\x28\x20\x0F\x8D\x8D\x00\x00\x00\x48\x63\x44\x24\x28\x48\x8B"
-	shellcode += b"\x4C\x24\x30\x48\x8B\x49\x18\x48\x83\x3C\xC1\x00\x75\x02\xEB\x76"
+	shellcode += b"\x24\x28\x20\x0F\x8D\x93\x00\x00\x00\x48\x63\x44\x24\x28\x48\x8B"
+	shellcode += b"\x4C\x24\x30\x48\x8B\x49\x18\x48\x83\x3C\xC1\x00\x75\x02\xEB\x7C"
 	shellcode += b"\x48\x63\x44\x24\x28\x48\x8B\x4C\x24\x30\x48\x8B\x49\x18\x48\x8B"
-	shellcode += b"\x04\xC1\x48\x8B\x40\x68\x48\x89\x84\x24\xA0\x00\x00\x00\x48\x63"
-	shellcode += b"\x44\x24\x28\x48\x8B\x4C\x24\x30\x48\x8B\x49\x18\x48\x8B\x04\xC1"
-	shellcode += b"\x48\x8B\x40\x70\x48\x89\x84\x24\xA8\x00\x00\x00\x48\xC7\x84\x24"
-	shellcode += b"\xB0\x00\x00\x00\x00\x00\x00\x00\x48\x8D\x8C\x24\x98\x00\x00\x00"
-	shellcode += b"\xFF\x94\x24\x90\x00\x00\x00\x48\x63\x44\x24\x28\x48\x8B\x4C\x24"
-	shellcode += b"\x30\x48\x8B\x49\x20\x48\x8B\x94\x24\xB0\x00\x00\x00\x48\x89\x14"
-	shellcode += b"\xC1\xE9\x5E\xFF\xFF\xFF\x48\x8B\x44\x24\x30\xC7\x40\x04\x00\x00"
-	shellcode += b"\x00\x00\x8B\x44\x24\x38\xE9\x06\x01\x00\x00\xE9\x01\x01\x00\x00"
-	shellcode += b"\x4C\x8D\x4C\x24\x4C\x41\xB8\x40\x00\x00\x00\xBA\x00\x10\x00\x00"
-	shellcode += b"\x48\xB9\x00\x40\xEC\x42\x01\x00\x00\x00\xFF\x54\x24\x70\xB9\x28"
-	shellcode += b"\x00\x00\x00\xFF\x54\x24\x58\x48\xB9\xF8\x41\xEC\x42\x01\x00\x00"
-	shellcode += b"\x00\x48\x89\x01\x4C\x8D\x4C\x24\x4C\x44\x8B\x44\x24\x4C\xBA\x00"
-	shellcode += b"\x10\x00\x00\x48\xB9\x00\x40\xEC\x42\x01\x00\x00\x00\xFF\x54\x24"
-	shellcode += b"\x70\x48\xB8\xF8\x41\xEC\x42\x01\x00\x00\x00\x48\x8B\x00\x48\x89"
-	shellcode += b"\x44\x24\x50\xC7\x44\x24\x40\x00\x00\x00\x00\xEB\x0A\x8B\x44\x24"
-	shellcode += b"\x40\xFF\xC0\x89\x44\x24\x40\x48\x63\x44\x24\x40\x48\x83\xF8\x28"
-	shellcode += b"\x73\x10\x48\x63\x44\x24\x40\x48\x8B\x4C\x24\x50\xC6\x04\x01\x00"
-	shellcode += b"\xEB\xDB\xB9\x30\x02\x00\x00\xFF\x54\x24\x58\x48\x8B\x4C\x24\x50"
-	shellcode += b"\x48\x89\x41\x10\xB9\x00\x01\x00\x00\xFF\x54\x24\x58\x48\x8B\x4C"
-	shellcode += b"\x24\x50\x48\x89\x41\x18\xC7\x44\x24\x44\x00\x00\x00\x00\xEB\x0A"
-	shellcode += b"\x8B\x44\x24\x44\xFF\xC0\x89\x44\x24\x44\x48\x63\x44\x24\x44\x48"
-	shellcode += b"\x3D\x00\x01\x00\x00\x73\x14\x48\x63\x44\x24\x44\x48\x8B\x4C\x24"
-	shellcode += b"\x50\x48\x8B\x49\x18\xC6\x04\x01\x00\xEB\xD5\xB9\x00\x01\x00\x00"
-	shellcode += b"\xFF\x54\x24\x58\x48\x8B\x4C\x24\x50\x48\x89\x41\x20\x8B\x44\x24"
-	shellcode += b"\x38\x48\x81\xC4\xC8\x00\x00\x00\xC3\xCC\xCC\xCC\xCC\xCC\xCC\xCC"
+	shellcode += b"\x04\xC1\x48\x8B\x80\x88\x00\x00\x00\x48\x89\x84\x24\xA0\x00\x00"
+	shellcode += b"\x00\x48\x63\x44\x24\x28\x48\x8B\x4C\x24\x30\x48\x8B\x49\x18\x48"
+	shellcode += b"\x8B\x04\xC1\x48\x8B\x80\x90\x00\x00\x00\x48\x89\x84\x24\xA8\x00"
+	shellcode += b"\x00\x00\x48\xC7\x84\x24\xB0\x00\x00\x00\x00\x00\x00\x00\x48\x8D"
+	shellcode += b"\x8C\x24\x98\x00\x00\x00\xFF\x94\x24\x90\x00\x00\x00\x48\x63\x44"
+	shellcode += b"\x24\x28\x48\x8B\x4C\x24\x30\x48\x8B\x49\x20\x48\x8B\x94\x24\xB0"
+	shellcode += b"\x00\x00\x00\x48\x89\x14\xC1\xE9\x58\xFF\xFF\xFF\x48\x8B\x44\x24"
+	shellcode += b"\x30\xC7\x40\x04\x00\x00\x00\x00\x8B\x44\x24\x38\xE9\x06\x01\x00"
+	shellcode += b"\x00\xE9\x01\x01\x00\x00\x4C\x8D\x4C\x24\x4C\x41\xB8\x40\x00\x00"
+	shellcode += b"\x00\xBA\x00\x10\x00\x00\x48\xB9\x00\x40\xEC\x42\x01\x00\x00\x00"
+	shellcode += b"\xFF\x54\x24\x70\xB9\x28\x00\x00\x00\xFF\x54\x24\x58\x48\xB9\xF8"
+	shellcode += b"\x41\xEC\x42\x01\x00\x00\x00\x48\x89\x01\x4C\x8D\x4C\x24\x4C\x44"
+	shellcode += b"\x8B\x44\x24\x4C\xBA\x00\x10\x00\x00\x48\xB9\x00\x40\xEC\x42\x01"
+	shellcode += b"\x00\x00\x00\xFF\x54\x24\x70\x48\xB8\xF8\x41\xEC\x42\x01\x00\x00"
+	shellcode += b"\x00\x48\x8B\x00\x48\x89\x44\x24\x50\xC7\x44\x24\x40\x00\x00\x00"
+	shellcode += b"\x00\xEB\x0A\x8B\x44\x24\x40\xFF\xC0\x89\x44\x24\x40\x48\x63\x44"
+	shellcode += b"\x24\x40\x48\x83\xF8\x28\x73\x10\x48\x63\x44\x24\x40\x48\x8B\x4C"
+	shellcode += b"\x24\x50\xC6\x04\x01\x00\xEB\xDB\xB9\x30\x02\x00\x00\xFF\x54\x24"
+	shellcode += b"\x58\x48\x8B\x4C\x24\x50\x48\x89\x41\x10\xB9\x00\x01\x00\x00\xFF"
+	shellcode += b"\x54\x24\x58\x48\x8B\x4C\x24\x50\x48\x89\x41\x18\xC7\x44\x24\x44"
+	shellcode += b"\x00\x00\x00\x00\xEB\x0A\x8B\x44\x24\x44\xFF\xC0\x89\x44\x24\x44"
+	shellcode += b"\x48\x63\x44\x24\x44\x48\x3D\x00\x01\x00\x00\x73\x14\x48\x63\x44"
+	shellcode += b"\x24\x44\x48\x8B\x4C\x24\x50\x48\x8B\x49\x18\xC6\x04\x01\x00\xEB"
+	shellcode += b"\xD5\xB9\x00\x01\x00\x00\xFF\x54\x24\x58\x48\x8B\x4C\x24\x50\x48"
+	shellcode += b"\x89\x41\x20\x8B\x44\x24\x38\x48\x81\xC4\xC8\x00\x00\x00\xC3\xCC"
 
 	# Replacing shellcode constants with updates via sigs
 	shellcode = shellcode.replace((0x142EC41F8).to_bytes(8,'little'), offsets['NODICE_MGR'].to_bytes(8,'little'),len(shellcode))

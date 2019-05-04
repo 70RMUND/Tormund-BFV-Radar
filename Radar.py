@@ -16,6 +16,7 @@ class Color:
 	GREEN = (0, 255, 0)
 	RED = (255, 0, 0)
 	YELLOW = (255, 255,0)
+	CYAN = (0, 255,255)
   
 def Vec3Difference(a,b):
 	ret = (c_float*3)()
@@ -291,7 +292,19 @@ class Radar():
 				self.DrawBeacon(Position,VColor)
 			else:
 				self.DrawTransport(Position,Yaw,VColor)
-			
+	
+	def DrawDot(self,pos,color):
+		self.screen.set_at((pos[0], pos[1]-1), color)
+		self.screen.set_at((pos[0]+1, pos[1]-1), color)
+		self.screen.set_at((pos[0]-1, pos[1]-1), color)
+		self.screen.set_at((pos[0], pos[1]), color)
+		self.screen.set_at((pos[0]+1, pos[1]), color)
+		self.screen.set_at((pos[0]-1, pos[1]), color)
+		self.screen.set_at((pos[0], pos[1]+1), color)
+		self.screen.set_at((pos[0]+1, pos[1]+1), color)
+		self.screen.set_at((pos[0]-1, pos[1]+1), color)
+	
+	
 	def UpdateBounds(self,data):
 		for t in range(2,-1,-1):
 			if (t == 2): C = (Color.RED,Color.GREEN)[(data.myteamid-1) % (2)]
@@ -336,19 +349,51 @@ class Radar():
 			x = Position.x
 			y = Position.y
 
-			if (LootEntity.VestEntity):
-				color = self.blink()
-				self.Text("#",color,x,y)
-				continue
-			if (LootEntity.LootName[-5:] == "Tier2"):
-				color = Color.GREEN
-				self.Text("*",color,x,y)
-			elif (LootEntity.LootName[-5:] == "Tier3"):
-				color = self.blink()
-				self.Text("*",color,x,y)
-			else:
-				color = Color.WHITE
-				self.Text(".",color,x,y)
+			if ("U_Dakar_Bandages" in LootEntity.ItemName):
+				color = Color.RED
+				self.DrawDot((x,y),color)
+			elif ("FlareGun" in LootEntity.ItemName):
+				if ("V1Rocket" in LootEntity.ItemName):
+					color = Color.GREEN
+					self.Text("F",color,x,y)
+				elif ("DangerZone" in LootEntity.ItemName):
+					color = Color.RED
+					self.Text("F",color,x,y)
+			elif ("U_BREN" in LootEntity.ItemName):
+				if (LootEntity.LootName[-5:] == "Tier2"):
+					color = Color.GREEN
+					self.Text("b",color,x,y)
+				elif (LootEntity.LootName[-5:] == "Tier3"):
+					color = self.blink()
+					self.Text("b",color,x,y)
+				else:
+					color = Color.WHITE
+					self.Text("b",color,x,y)
+			elif ("BoltAction" in LootEntity.ItemName):
+				if (LootEntity.LootName[-5:] == "Tier2"):
+					color = Color.GREEN
+					self.Text("S",color,x,y)
+				elif (LootEntity.LootName[-5:] == "Tier3"):
+					color = self.blink()
+					self.Text("S",color,x,y)
+				else:
+					color = Color.WHITE
+					self.Text("S",color,x,y)
+			elif ("Armor" in LootEntity.ItemName):
+				color = Color.YELLOW
+				self.DrawDot((x,y),color)
+			elif ("Ammo" in LootEntity.ItemName):
+				if ("U_Dakar_Ammo_Sniper" in LootEntity.ItemName):
+					color = Color.GREEN
+					self.DrawDot((x,y),color)
+				elif ("U_Dakar_Ammo_MG" in LootEntity.ItemName):
+					color = Color.CYAN
+					self.DrawDot((x,y),color)
+				else:
+					color = Color.WHITE
+					self.Text(".",color,x,y)
+					
+
 			
 	def blink(self):
 		global cnt
@@ -401,13 +446,13 @@ class Radar():
 					g_gamedata.mytransform = [[0,0,0,0],[0,0,0,0],[0,0,0,0],c.InnerCircle_Const]
 					
 			self.UpdateBounds(g_gamedata)
-			self.UpdateObjectives(g_gamedata)
-			self.UpdateSoldiers(g_gamedata)
 			self.UpdateVehicles(g_gamedata)
-			self.UpdateExplosives(g_gamedata)
+			self.UpdateObjectives(g_gamedata)
 			self.UpdateGrenades(g_gamedata)
+			self.UpdateExplosives(g_gamedata)
 			self.UpdateSupplies(g_gamedata)
 			self.UpdateFirestorm(g_gamedata)
+			self.UpdateSoldiers(g_gamedata)
 			
 
 

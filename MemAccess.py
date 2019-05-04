@@ -157,6 +157,17 @@ class WinApi():
 		if (self._debug): print ("rpm_uint64 -> addr: 0x%x val: 0x%x"%(addr,buffer.value))
 		return buffer.value
 			
+	def wpm_uint32(self,handle, addr, value):
+		if (self._debug): print ("wpm_uint632 -> addr: 0x%x val: 0x%x"%(addr,value))
+		buffer = c_ulong(value)
+		addr_ = c_ulonglong(addr)
+		ret = self.WriteProcessMemory(handle,addr_,byref(buffer),sizeof(buffer),None)
+		if (ret == 0):
+			if (self._debug):
+				print ("[+] ERROR: WriteProcessMemory Failed: 0x%x" %(self.GetLastError()))
+				print ("[+] ERROR: Access of Address 0x%x failed" % (addr))
+			#exit(1)
+			
 	def wpm_uint64(self,handle, addr, value):
 		if (self._debug): print ("wpm_uint64 -> addr: 0x%x val: 0x%x"%(addr,value))
 		buffer = c_ulonglong(value)
@@ -287,6 +298,9 @@ class MemAccess(object):
 		value = api.rpm_uint64(self.pHandle,off+self.next_base)
 		
 		return value
+		
+	def write_uint32(self,val,off=0):
+		api.wpm_uint32(self.pHandle,off+self.next_base,val)
 		
 	def write_uint64(self,val,off=0):
 		api.wpm_uint64(self.pHandle,off+self.next_base,val)
