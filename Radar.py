@@ -85,7 +85,12 @@ class Radar():
 		self.UpdateCount = 0
 		
 	def GetRadarData(self,MyPosition,MyViewmatrix,Transform):
-		Pos = Transform[3]
+		try:
+			Pos = Transform[3]
+		except:
+			Pos = [0,0,0,0]
+			#print (str(Transform))
+			#return (0,0,0)
 		Pos = Vec3Difference(MyPosition,Pos)
 		Pos = Vec3Normalize(Pos,self.distance/8)
 		Pos = Vec3Scale(Pos,(self.distance/8)*self.zoom)
@@ -330,7 +335,8 @@ class Radar():
 			Yaw = RadarData[1]
 			Position = self.FromCenter(Pos[0],Pos[1])
 			rad = c.OuterCircleRadius_Moving * self.zoom
-			pygame.draw.circle(self.screen,(246,108,0),(Position.x,Position.y),int(rad),3)
+			if (int(rad)>3):
+				pygame.draw.circle(self.screen,(246,108,0),(Position.x,Position.y),int(rad),3)
 			
 			RadarData = self.GetRadarData(data.mytransform[3],data.myviewmatrix,[[0,0,0,0],[0,0,0,0],[0,0,0,0],c.InnerCircle_Const])
 			Pos = RadarData[0]
@@ -414,19 +420,16 @@ class Radar():
 		for event in pygame.event.get():  # User did something
 			if event.type == pygame.QUIT:  # If user clicked close
 				pygame.quit()
-			
+
+		inc_factor = self.zoom/100.0 * 4
+
 		if (GetAsyncKeyState(0x6b)&0x8000): # '+' key
-			if (not g_gamedata.keydown):
-				if (self.zoom <= 19.9): self.zoom += 0.1
-				else:  self.zoom = 20.0
-				g_gamedata.keydown = True
+			if (self.zoom <= 39.9): self.zoom += inc_factor
+			else:  self.zoom = 40.0
+
 		elif (GetAsyncKeyState(0x6d)&0x8000): # '-' key
-			if (not g_gamedata.keydown):
-				if (self.zoom >= 0.2): self.zoom -= 0.1
-				else: self.zoom = 0.1
-				g_gamedata.keydown = True
-		else:
-			g_gamedata.keydown = False
+			if (self.zoom >= 0.100001): self.zoom -= inc_factor
+			else: self.zoom = 0.1		
 
 		# Set our background first, everything else on top of it
 		try:

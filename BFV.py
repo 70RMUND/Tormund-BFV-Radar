@@ -1,5 +1,6 @@
 import MemAccess
 import copy
+import time
 from MemAccess import *
 
 # BFV Related Offsets
@@ -16,12 +17,12 @@ GameRenderer_RenderView = 0x60 #
 RenderView_ViewMatrix = 0x2F0 #
 HC_Health = 0x20
 HC_MaxHealth = 0x24
-CVE_TeamID = 0x1c4+0x10
-CSE_HealthComponent = 0x288 #
+CVE_TeamID = 0x1bc
+CSE_HealthComponent = 0x270 #
 CCPE_Transform = 0x3c0
-CSE_Player = 0x320
+CSE_Player = 0x328
 CVE_VehicleEntityData = 0x30
-VED_ControllableType = 0x1E8
+VED_ControllableType = 0x1F8
 CCAT_ActiveTrigger = 0xD84
 CCAT_TriggerData = 0x28
 CCAT_ppAreaBounds = 0x60
@@ -35,6 +36,143 @@ OD_ControlledState = 0x8C
 
 global offsets
 offsets = {}
+		
+class PointerManager():
+	def __init__(self,pHandle):
+		self.mem = MemAccess(pHandle)
+		self.OBFUS_MGR = 0x1447555D0
+		
+	@staticmethod
+	def decrypt_ptr(encptr, key):
+		# Grab byte at location
+		def GRAB_BYTE(x,n):
+			return (x >> (n*8))&0xFF
+		ret = 0
+		subkey = (key^((5*key)%(2**64)))%(2**64)
+		for i in range(7):
+			y = GRAB_BYTE(subkey,i)
+			subkey += 8
+			t1 = (y*0x3B)%(2**8)
+			t2 = (y + GRAB_BYTE(encptr,i)) % (2**8)
+			ret |= (t2^t1)<<(i*8)
+		ret |= GRAB_BYTE(encptr,7)<< 56
+		ret &= 0x7FFFFFFFFFFFFFFF
+		return ret
+
+	def hashtable_find(self, table, key):
+		mem = self.mem
+		bucketCount = mem[table].read_uint32(0x10)
+		elemCount = mem[table].read_uint32(0x14)
+		startcount = key % bucketCount
+		node = mem[table](0x8)(0x8*startcount).me()
+		
+		if (node == 0):
+			return 0
+		
+		while 1:
+			first = mem[node].read_uint64(0x0)
+			second = mem[node].read_uint64(0x8)
+			next = mem[node].read_uint64(0x16)
+
+			if first == key:
+				return second		
+			elif (next == 0):
+				return 0
+				
+			node = next
+	
+	
+	def GetLocalPlayer(self):
+		mem = self.mem
+		ClientPlayerManager = mem[offsets["CLIENT_GAME_CONTEXT"]](0).read_uint64(0x68)
+		ObfManager = mem[self.OBFUS_MGR].read_uint64(0)
+		LocalPlayerListXorValue = mem[ClientPlayerManager].read_uint64(0xF0)
+		LocalPlayerListKey = LocalPlayerListXorValue ^ mem[ObfManager].read_uint64(0xE0)
+		
+		hashtable = ObfManager+0x10
+		EncryptedPlayerManager = self.hashtable_find(hashtable, LocalPlayerListKey)
+		if (EncryptedPlayerManager == 0):
+			return 0
+		MaxPlayerCount = mem[EncryptedPlayerManager].read_uint32(0x18)
+		
+		if (MaxPlayerCount != 1):
+			return 0
+			
+		XorValue1 = mem[EncryptedPlayerManager].read_uint64(0x20) ^ mem[EncryptedPlayerManager].read_uint64(0x8)
+		XorValue2 = mem[EncryptedPlayerManager].read_uint64(0x10) ^ 0x598447EFD7A36912
+		LocalPlayer = mem[XorValue2].read_uint64(0) ^ XorValue1
+		
+		return LocalPlayer
+		
+	def GetPlayerById(self,id):
+		mem = self.mem
+		ClientPlayerManager = mem[offsets["CLIENT_GAME_CONTEXT"]](0).read_uint64(0x68)
+		ObfManager = mem[self.OBFUS_MGR].read_uint64(0)
+		PlayerListXorValue = mem[ClientPlayerManager].read_uint64(0xF8)
+		PlayerListKey = PlayerListXorValue ^ mem[ObfManager].read_uint64(0xE0)
+		
+		hashtable = ObfManager+0x10
+		EncryptedPlayerManager = self.hashtable_find(hashtable, PlayerListKey)
+		if (EncryptedPlayerManager == 0):
+			return 0
+		MaxPlayerCount = mem[EncryptedPlayerManager].read_uint32(0x18)
+		
+		if (MaxPlayerCount != 70):
+			return 0
+			
+		XorValue1 = mem[EncryptedPlayerManager].read_uint64(0x20) ^ mem[EncryptedPlayerManager].read_uint64(0x8)
+		XorValue2 = mem[EncryptedPlayerManager].read_uint64(0x10) ^ 0x598447EFD7A36912
+		ClientPlayer = mem[XorValue2].read_uint64(0x8*id) ^ XorValue1
+		
+		return ClientPlayer
+		
+	def GetSpectatorById(self,id):
+		mem = self.mem
+		ClientPlayerManager = mem[offsets["CLIENT_GAME_CONTEXT"]](0).read_uint64(0x68)
+		ObfManager = mem[self.OBFUS_MGR].read_uint64(0)
+		PlayerListXorValue = mem[ClientPlayerManager].read_uint64(0xF0-8)
+		PlayerListKey = PlayerListXorValue ^ mem[ObfManager].read_uint64(0xE0)
+		
+		hashtable = ObfManager+0x10
+		EncryptedPlayerManager = self.hashtable_find(hashtable, PlayerListKey)
+		if (EncryptedPlayerManager == 0):
+			return 0
+		MaxPlayerCount = mem[EncryptedPlayerManager].read_uint32(0x18)
+
+		if (MaxPlayerCount == 0) or (id >= MaxPlayerCount):
+			return 0
+			
+		XorValue1 = mem[EncryptedPlayerManager].read_uint64(0x20) ^ mem[EncryptedPlayerManager].read_uint64(0x8)
+		XorValue2 = mem[EncryptedPlayerManager].read_uint64(0x10) ^ 0x598447EFD7A36912
+		ClientPlayer = mem[XorValue2].read_uint64(0x8*id) ^ XorValue1
+		
+		return ClientPlayer
+		
+	def GetEntityKey(self,PointerKey):
+		mem = self.mem
+		ObfManager = mem[self.OBFUS_MGR].read_uint64(0)
+		HashTableKey = PointerKey ^ mem[ObfManager].read_uint64(0xE0)
+		hashtable = ObfManager+0x78
+		EncryptionKey = self.hashtable_find(hashtable, HashTableKey)
+		EncryptionKey ^= 0x598447EFD7A36912
+		if (EncryptionKey == 0):
+			return 0
+		return EncryptionKey
+		
+	def DecryptPointer(self,EncPtr,PointerKey):
+		if not (EncPtr&0x8000000000000000):
+			return 0
+		mem = self.mem
+		ObfManager = mem[self.OBFUS_MGR].read_uint64(0)
+		HashTableKey = PointerKey ^ mem[ObfManager].read_uint64(0xE0)
+		hashtable = ObfManager+0x78
+		EncryptionKey = self.hashtable_find(hashtable, HashTableKey)
+		EncryptionKey ^= 0x598447EFD7A36912
+		if (EncryptionKey == 0):
+			return 0
+		
+		return PointerManager.decrypt_ptr(EncPtr,EncryptionKey)
+
 
 def find_typeinfo(name,first,pHandle):
 	mem = MemAccess(pHandle)
@@ -52,116 +190,67 @@ def build_offsets(pHandle):
 	x = sigscan(pHandle)
 	mem = MemAccess(pHandle)
 	offsets["TIMESTAMP"] = get_buildtime(pHandle)
-	offsets["CODECAVE_ADDR"] = get_codecave(pHandle)
-	offsets["NODICE_MGR"] = offsets["CODECAVE_ADDR"] - 0x8
-	addr = x.scan("0F 84 ?? ?? ?? ?? FF 15 ?? ?? ?? ?? 3B 05 ?? ?? ?? ??")
-	print("[+] GAME_GET_CURRENT_THREAD_ID      = %x"%(addr))
-	offsets["GAME_GET_CURRENT_THREAD_ID"] = mem[addr].read_int32(8)+addr+8+4
-	offsets["GAME_APPROVED_THREAD"] = mem[addr].read_int32(14)+addr+14+4
-	offsets["ORIGINAL_GTID_FUNC"] = offsets["CODECAVE_ADDR"] - 0x10
-	addr = x.scan("E8 ? ? ? ? 48 8B F8 48 89 45 B8 84 DB")
-	print("[+] GET_LOCAL_PLAYER_FUNC           = %x"%(addr))
-	offsets["GET_LOCAL_PLAYER_FUNC"] = mem[addr].read_int32(1)+addr+1+4
-	addr = x.scan("E8 ? ? ? ? 0F B6 D8 88 45 67 48 8D 4D C7")
-	print("[+] THREAD_CONTROL_FUNC             = %x"%(addr))
-	jfunc = mem[addr].read_uint32(1)+addr+1+4
-	offsets["THREAD_CONTROL_FUNC"] = mem[jfunc].read_int32(1)+jfunc+1+4
+	addr = x.scan("48 8B 0D ? ? ? ? 48 8B 01 B2 01 FF 50")
+	offsets["GAMERENDERER"] = mem[addr].read_int32(3)+addr+3+4
 	addr = x.scan("48 8B 05 ? ? ? ? 48 85 C0 74 26 4C 8B 40 40")
 	print("[+] CLIENT_GAME_CONTEXT             = %x"%(addr))
 	offsets["CLIENT_GAME_CONTEXT"] = mem[addr].read_int32(3)+addr+3+4
-	addr = x.scan("E8 ? ? ? ? 48 8B F0 48 8D 54 24 ? 48 8B 4B 28")
-	print("[+] GET_PLAYER_BY_INDEX_FUNC        = %x"%(addr))
-	offsets["GET_PLAYER_BY_INDEX_FUNC"] = mem[addr].read_int32(1)+addr+1+4
-	addr = x.scan("48 85 D2 48 0F 45 CA 48 FF 25 ? ? ? ?")
-	print("[+] GAME_MALLOC                     = %x"%(addr))
-	offsets["GAME_MALLOC"] = mem[addr].read_int32(10)+addr+10+4
-	addr = x.scan("48 8B 53 08 48 8B 0B FF 15 ? ? ? ? 48 8B 5C 24")
-	print("[+] GAME_VIRTUALPROTECT             = %x"%(addr))
-	offsets["GAME_VIRTUALPROTECT"] = mem[addr].read_int32(9)+addr+9+4
-	addr = x.scan("48 8B 0D ? ? ? ? 33 D2 48 8B 19")
-	print("[+] DX11RENDERER                    = %x"%(addr))
-	offsets["DX11RENDERER"] = mem[addr].read_int32(3)+addr+3+4
-	addr = x.scan("E8 ? ? ? ? 48 8B D8 48 85 C0 0F 84 ? ? ? ? F3 0F 10 75 ?")
-	print("[+] GET_ENTITY_DATA                 = %x"%(addr))
-	offsets["GET_ENTITY_DATA"] = mem[addr].read_int32(1)+addr+1+4
-	addr = x.scan("48 8B 0D ? ? ? ? 48 8B 01 B2 01 FF 50")
-	print("[+] GAMERENDERER                    = %x"%(addr))
-	offsets["GAMERENDERER"] = mem[addr].read_int32(3)+addr+3+4
 	addr = x.scan("48 8B 05 ?? ?? ?? ?? 31 D2 48 85 C0 74")
 	print("[+] FIRST_TYPEINFO                  = %x"%(0x14495A568))
-	offsets["FIRST_TYPEINFO"] = 0x14495A568 #%mem[addr].read_int32(3)+addr+3+4
+	offsets["FIRST_TYPEINFO"] = 0x144731BF8 #%mem[addr].read_int32(3)+addr+3+4
 	addr = x.scan("FF 0D ?? ?? ?? ?? 48 89 CA 48 8B 1D ?? ?? ?? ??")
 	print("[+] OBJECTIVE_MANAGER               = %x"%(addr))
 	offsets["OBJECTIVE_MANAGER"] = mem[addr].read_int32(12)+addr+12+4
 	addr = x.scan("4C 8B F2 48 8B D9 48 8B 35 ? ? ? ? 48 85 F6")
 	print("[+] CLIENTSHRINKINGPLAYAREA         = %x"%(addr))
 	offsets["CLIENTSHRINKINGPLAYAREA"] = mem[addr].read_int32(9)+addr+9+4
-	
 	#addr = find_typeinfo("ClientSoldierEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientSoldierEntity"] = 0x145173B70#addr
+	offsets["ClientSoldierEntity"] = 0x145325980#addr
 	print("[+] ClientSoldierEntity             = %x"%(offsets["ClientSoldierEntity"]))
 	#addr = find_typeinfo("ClientVehicleEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientVehicleEntity"] = 0x145082CA0 #addr
+	offsets["ClientVehicleEntity"] = 0x1452356C0 #addr
 	print("[+] ClientVehicleEntity             = %x"%(offsets["ClientVehicleEntity"]))
 	#addr = find_typeinfo("ClientSupplySphereEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientSupplySphereEntity"] = 0x144E94DA0#addr
+	offsets["ClientSupplySphereEntity"] = 0x1450500A0#addr
 	print("[+] ClientSupplySphereEntity        = %x"%(offsets["ClientVehicleEntity"]))
 	#addr = find_typeinfo("ClientCombatAreaTriggerEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientCombatAreaTriggerEntity"] = 0x1450837D0# addr
+	offsets["ClientCombatAreaTriggerEntity"] = 0x1452365D0# addr
 	print("[+] ClientCombatAreaTriggerEntity   = %x"%(offsets["ClientCombatAreaTriggerEntity"]))
 	#addr = find_typeinfo("ClientExplosionPackEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientExplosionPackEntity"] = 0x0145179CB0#addr
+	offsets["ClientExplosionPackEntity"] = 0x14532BAC0#addr
 	print("[+] ClientExplosionPackEntity       = %x"%(offsets["ClientExplosionPackEntity"]))
 	#addr = find_typeinfo("ClientProxyGrenadeEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientProxyGrenadeEntity"] = 0x0145179980#addr
+	offsets["ClientProxyGrenadeEntity"] = 0x014532B790#addr
 	print("[+] ClientProxyGrenadeEntity        = %x"%(offsets["ClientProxyGrenadeEntity"]))
 	#addr = find_typeinfo("ClientGrenadeEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientGrenadeEntity"] = 0x145179BA0#add
+	offsets["ClientGrenadeEntity"] = 0x14532B9B0#add
 	print("[+] ClientGrenadeEntity             = %x"%(offsets["ClientGrenadeEntity"]))
 	#addr = find_typeinfo("ClientInteractableGrenadeEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientInteractableGrenadeEntity"] = 0x144E9E210#addr 
+	offsets["ClientInteractableGrenadeEntity"] = 0x145057FB0#addr 
 	print("[+] ClientInteractableGrenadeEntity = %x"%(offsets["ClientInteractableGrenadeEntity"]))
 	#addr = find_typeinfo("ClientCapturePointEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientCapturePointEntity"] = 0x144E88070#addr
+	offsets["ClientCapturePointEntity"] = 0x145045890#addr
 	print("[+] ClientCapturePointEntity        = %x"%(offsets["ClientCapturePointEntity"]))
 	#addr = find_typeinfo("ClientLootItemEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientLootItemEntity"] = 0x144F1DEC0#addr
+	offsets["ClientLootItemEntity"] = 0x1450D1280#addr
 	print("[+] ClientLootItemEntity            = %x"%(offsets["ClientLootItemEntity"]))
 	#addr = find_typeinfo("ClientArmorVestLootItemEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientArmorVestLootItemEntity"] = 0x144F1F1E0#addr
+	offsets["ClientArmorVestLootItemEntity"] = 0x1450D25A0#addr
 	print("[+] ClientArmorVestLootItemEntity   = %x"%(offsets["ClientArmorVestLootItemEntity"]))
 	print ("[+] Done")
 	return offsets
 
-# Grab byte at location
-def GRAB_BYTE(x,n):
-	return (x >> (n*8))&0xFF
- 
-# Decrypt using subkey
-def decrypt_ptr(encptr, key):
-	ret = 0
-	subkey = (key^((5*key)%(2**64)))%(2**64)
-	for i in range(7):
-		y = GRAB_BYTE(subkey,i)
-		subkey += 8
-		t1 = (y*0x3B)%(2**8)
-		t2 = (y + GRAB_BYTE(encptr,i)) % (2**8)
-		ret |= (t2^t1)<<(i*8)
-	ret |= GRAB_BYTE(encptr,7)<< 56
-	ret &= 0x7FFFFFFFFFFFFFFF
-	return ret
-	
 def GetLocalPlayerList(pHandle):
 	global offsets
-	mem = MemAccess(pHandle)
+	pm = PointerManager(pHandle)
 	ind = 0
 	plist = []
-	while (1):
-		player = mem[offsets["NODICE_MGR"]](0)(NDM_PLAYERLIST).read_uint64(ind*8)
-		if player == 0:
-			break
-		plist += [player]
-		ind+=1
+	
+	for i in range(70):
+		pPlayer = pm.GetPlayerById(i)
+		if pPlayer != 0:
+			plist += [pPlayer]
+	
 	return plist
 
 def GetEncKey(pHandle,typeinfo):
@@ -181,18 +270,10 @@ def GetEncKey(pHandle,typeinfo):
 		api._cache_en = cache_en
 		return keystore[typeinfo]
 
-	mem[offsets["NODICE_MGR"]](0)(NDM_TYPEINFOLIST).write_uint64(0x0,0x0)
-	mem[offsets["NODICE_MGR"]](0)(NDM_ENTITYKEYLIST).write_uint64(0x0,0x0)
-	while (mem[offsets["NODICE_MGR"]](0)(NDM_ENTITYKEYLIST).read_uint64(0x0) != 0):
-		pass
-
-	mem[offsets["NODICE_MGR"]](0)(NDM_TYPEINFOLIST).write_uint64(typeinfo,0x0)
-	while (mem[offsets["NODICE_MGR"]](0)(NDM_ENTITYKEYLIST).read_uint64(0x0) == 0):
-		pass
-
-	keystore[typeinfo] = mem[offsets["NODICE_MGR"]](0)(NDM_ENTITYKEYLIST).read_uint64(0x0)
-	api._cache_en = cache_en
+	pm = PointerManager(pHandle)
+	keystore[typeinfo] = pm.GetEntityKey(mem[typeinfo](0).me())
 	
+	api._cache_en = cache_en	
 	print ("[+] Typeinfo: 0x%x Encryption Key: 0x%x"% (typeinfo,keystore[typeinfo]))
 	return keystore[typeinfo]
 	
@@ -207,7 +288,7 @@ def GetEntityList(pHandle,typeinfo,flink_offset=0x80):
 	
 	
 	while (flink):
-		ent = decrypt_ptr(flink,key)
+		ent = PointerManager.decrypt_ptr(flink,key)
 		elist += [ent-flink_offset]
 		flink = mem[ent].read_uint64(0x0)
 		
@@ -222,7 +303,7 @@ def GetNextEntity(pHandle,Ptr,typeinfo,flink_offset=0x80):
 	else:
 		flink = mem[Ptr].read_uint64(flink_offset)
 		
-	ptr = decrypt_ptr(flink,key)-flink_offset
+	ptr = PointerManager.decrypt_ptr(flink,key)-flink_offset
 	if (isValid(ptr)):
 		return ptr
 	return 0
@@ -336,7 +417,6 @@ class GameData():
 	myviewmatrix = 0
 	mytransform = 0
 	valid = False
-	keydown = False
 	
 	def __init__(self):
 		self.soldiers = []
@@ -353,7 +433,6 @@ class GameData():
 		self.LastLootPtr = 0
 		self.LastVestLootPtr = 0
 		self.boundslimits = None# x low, x high, y low, y high
-		self.keydown == False
 		self.circledata = None
 		self.testpoint = False
 	def AddSoldier(self,soldier):
@@ -445,6 +524,7 @@ def Process(pHandle,cnt):
 	api._cache = {}
 	
 	mem = MemAccess(pHandle)
+	pm = PointerManager(pHandle)
 	
 	global g_gamedata
 	try:
@@ -466,15 +546,16 @@ def Process(pHandle,cnt):
 		mem[Entity](0x38).read_uint32(_off+0x40)]
 		return v4
 		
+	
+		
 	# Get Local Info
-	MyPlayer = mem[offsets["NODICE_MGR"]]()(NDM_LOCALPLAYER).me()
+	MyPlayer = pm.GetLocalPlayer()
 	MySoldier = mem[MyPlayer].weakptr(ClientPlayer_Soldier).me()
 	MyTeamId = mem[MyPlayer].read_uint32(ClientPlayer_TeamID)
 	MyVehicle = mem[MyPlayer].weakptr(ClientPlayer_Vehicle).me()
 	MyViewmatrix = mem[offsets["GAMERENDERER"]]()(GameRenderer_RenderView).read_mat4(RenderView_ViewMatrix)
 	MyTransform = GetEntityTransform(pHandle,MySoldier)
 	MyPos = GetEntityVec4(pHandle,MySoldier)
-
 	g_gamedata.myplayer = MyPlayer
 	g_gamedata.mysoldier = MySoldier
 	g_gamedata.myteamid = MyTeamId
@@ -491,7 +572,6 @@ def Process(pHandle,cnt):
 	# Render Soldiers
 	g_gamedata.ClearSoldiers()
 	for Soldier in GetEntityList(pHandle,offsets["ClientSoldierEntity"],0x80):
-		
 		# if you are me, skip
 		if (Soldier == MySoldier):
 			continue
@@ -532,9 +612,11 @@ def Process(pHandle,cnt):
 	# Render Vehicles
 	g_gamedata.ClearVehicles()
 	for Vehicle in GetEntityList(pHandle,offsets["ClientVehicleEntity"],0x80):
+
 		if (Vehicle == MyVehicle):
 			continue
 		Transform = GetEntityTransform(pHandle,Vehicle)
+		
 		if Transform == 0:
 			continue
 
@@ -544,7 +626,6 @@ def Process(pHandle,cnt):
 		VehicleData.pointer = Vehicle
 		VehicleData.vehicletype = mem[Vehicle](CVE_VehicleEntityData).read_string(VED_ControllableType)
 		VehicleData.teamid = (mem[Vehicle].read_uint32(CVE_TeamID))
-		
 		g_gamedata.AddVehicle(VehicleData)
 	
 	# Get all objectives by accessing ObjectiveManager and iterating all ObjectiveData
@@ -553,7 +634,7 @@ def Process(pHandle,cnt):
 	while (1):
 		UIObj = mem[offsets["OBJECTIVE_MANAGER"]](0)(0x38).read_uint64(i*8)
 		i+=1
-		if mem[UIObj].read_uint64(0) != 0x143750D38:
+		if mem[UIObj].read_uint64(0) != 0x1438b0158:
 			break
 		
 		Transform = mem[UIObj].read_mat4(OD_Transform)
@@ -673,9 +754,9 @@ def Process(pHandle,cnt):
 				if g_gamedata.LastLootPtr not in g_gamedata.loots:
 					if (mem[g_gamedata.LastLootPtr].read_int32(0x1C8) != -1):
 						Loot = GameLootData()
-						Loot.LootName = mem[g_gamedata.LastLootPtr].read_string(0x600)
-						Loot.LootType = mem[g_gamedata.LastLootPtr](0x30).read_uint32(0x108)
-						Loot.ItemName = mem[g_gamedata.LastLootPtr](0x30)(0xF0)(0x0).read_string(0x18)
+						Loot.LootName = mem[g_gamedata.LastLootPtr].read_string(0x690)
+						Loot.LootType = mem[g_gamedata.LastLootPtr](0x30).read_uint32(0x118)
+						Loot.ItemName = mem[g_gamedata.LastLootPtr](0x30)(0x100)(0x0).read_string(0x18)
 						
 						Loot.transform = GetEntityTransform(pHandle,g_gamedata.LastLootPtr)
 						g_gamedata.loots[g_gamedata.LastLootPtr] = Loot
@@ -700,9 +781,9 @@ def Process(pHandle,cnt):
 				if g_gamedata.LastVestLootPtr not in g_gamedata.loots:
 					if (mem[g_gamedata.LastVestLootPtr].read_int32(0x1C8) != -1):
 						Loot = GameLootData()
-						Loot.LootName = mem[g_gamedata.LastVestLootPtr].read_string(0x600)
+						Loot.LootName = mem[g_gamedata.LastVestLootPtr].read_string(0x690)
 						Loot.VestEntity = True
-						Loot.ItemName = mem[g_gamedata.LastLootPtr](0x30)(0xF0)(0x0).read_string(0x18)
+						Loot.ItemName = mem[g_gamedata.LastLootPtr](0x30)(0x100)(0x0).read_string(0x18)
 						Loot.transform = GetEntityTransform(pHandle,g_gamedata.LastVestLootPtr)
 						g_gamedata.loots[g_gamedata.LastVestLootPtr] = Loot
 				else:
@@ -711,119 +792,17 @@ def Process(pHandle,cnt):
 						del g_gamedata.loots[g_gamedata.LastVestLootPtr]
 
 
+
+
+
+
 def initialize(pHandle):
 	global offsets
 	PAGE_SIZE = 0x1000
 	ALL_ACCESS = 0x1f0fff
 	PAGE_FLR = 0xFFFFFFFFFFFFF000
 	PAGE_RWX = 0x40
-	offsets = build_offsets(pHandle)
-	
-	shellcode  = b"\x48\x81\xEC\xC8\x00\x00\x00\x48\xB8\xF0\x41\xEC\x42\x01\x00\x00"
-	shellcode += b"\x00\xFF\x10\x89\x44\x24\x38\x48\xB8\x88\x52\x4B\x44\x01\x00\x00"
-	shellcode += b"\x00\x8B\x4C\x24\x38\x39\x08\x74\x09\x8B\x44\x24\x38\xE9\x85\x03"
-	shellcode += b"\x00\x00\x48\xB8\x90\xF2\x63\x41\x01\x00\x00\x00\x48\x89\x84\x24"
-	shellcode += b"\x80\x00\x00\x00\x48\xB8\x40\xD8\xB3\x47\x01\x00\x00\x00\x48\x89"
-	shellcode += b"\x44\x24\x68\x48\xB8\x90\x00\x64\x41\x01\x00\x00\x00\x48\x89\x84"
-	shellcode += b"\x24\x88\x00\x00\x00\x48\xB8\x20\x62\x18\x43\x01\x00\x00\x00\x48"
-	shellcode += b"\x8B\x00\x48\x89\x44\x24\x70\x48\xB8\x80\x76\xA6\x40\x01\x00\x00"
-	shellcode += b"\x00\x48\x89\x84\x24\x90\x00\x00\x00\x48\xB8\x60\x71\x18\x43\x01"
-	shellcode += b"\x00\x00\x00\x48\x8B\x00\x48\x89\x44\x24\x58\x48\xB8\xD0\xD7\x4A"
-	shellcode += b"\x44\x01\x00\x00\x00\x48\x8B\x00\x48\x8B\x40\x68\x48\x89\x44\x24"
-	shellcode += b"\x60\x48\xB8\xF8\x41\xEC\x42\x01\x00\x00\x00\x48\x8B\x00\x48\x89"
-	shellcode += b"\x44\x24\x30\x48\x83\x7C\x24\x30\x00\x0F\x84\xE7\x01\x00\x00\x48"
-	shellcode += b"\x8B\x44\x24\x30\x83\x78\x04\x00\x74\x09\x8B\x44\x24\x38\xE9\xD4"
-	shellcode += b"\x02\x00\x00\x48\xB8\xD8\x2D\x52\x44\x01\x00\x00\x00\x48\x8B\x00"
-	shellcode += b"\x48\x89\x44\x24\x78\x48\x8B\x44\x24\x78\x8B\x80\x08\x09\x00\x00"
-	shellcode += b"\x89\x44\x24\x48\x48\x8B\x44\x24\x30\x8B\x00\x39\x44\x24\x48\x75"
-	shellcode += b"\x09\x8B\x44\x24\x38\xE9\x9D\x02\x00\x00\x48\x8B\x44\x24\x30\x8B"
-	shellcode += b"\x4C\x24\x48\x89\x08\x48\x8B\x44\x24\x30\xC7\x40\x04\x01\x00\x00"
-	shellcode += b"\x00\xB1\x01\xFF\x54\x24\x68\x88\x44\x24\x20\x33\xD2\x48\x8B\x4C"
-	shellcode += b"\x24\x60\xFF\x94\x24\x80\x00\x00\x00\x48\x8B\x4C\x24\x30\x48\x89"
-	shellcode += b"\x41\x08\xC7\x44\x24\x24\x00\x00\x00\x00\xEB\x0A\x8B\x44\x24\x24"
-	shellcode += b"\xFF\xC0\x89\x44\x24\x24\x83\x7C\x24\x24\x46\x7D\x6E\x8B\x54\x24"
-	shellcode += b"\x24\x48\x8B\x4C\x24\x60\xFF\x94\x24\x88\x00\x00\x00\x48\x63\x4C"
-	shellcode += b"\x24\x24\x48\x8B\x54\x24\x30\x48\x8B\x52\x10\x48\x89\x04\xCA\x48"
-	shellcode += b"\x63\x44\x24\x24\x48\x8B\x4C\x24\x30\x48\x8B\x49\x10\x48\x83\x3C"
-	shellcode += b"\xC1\x00\x75\x35\x8B\x44\x24\x24\x89\x44\x24\x3C\xEB\x0A\x8B\x44"
-	shellcode += b"\x24\x3C\xFF\xC0\x89\x44\x24\x3C\x83\x7C\x24\x3C\x46\x7D\x18\x48"
-	shellcode += b"\x63\x44\x24\x3C\x48\x8B\x4C\x24\x30\x48\x8B\x49\x10\x48\xC7\x04"
-	shellcode += b"\xC1\x00\x00\x00\x00\xEB\xD7\xEB\x02\xEB\x81\x0F\xB6\x44\x24\x20"
-	shellcode += b"\x85\xC0\x74\x06\x33\xC9\xFF\x54\x24\x68\xC7\x44\x24\x28\x00\x00"
-	shellcode += b"\x00\x00\xEB\x0A\x8B\x44\x24\x28\xFF\xC0\x89\x44\x24\x28\x83\x7C"
-	shellcode += b"\x24\x28\x20\x0F\x8D\x93\x00\x00\x00\x48\x63\x44\x24\x28\x48\x8B"
-	shellcode += b"\x4C\x24\x30\x48\x8B\x49\x18\x48\x83\x3C\xC1\x00\x75\x02\xEB\x7C"
-	shellcode += b"\x48\x63\x44\x24\x28\x48\x8B\x4C\x24\x30\x48\x8B\x49\x18\x48\x8B"
-	shellcode += b"\x04\xC1\x48\x8B\x80\x88\x00\x00\x00\x48\x89\x84\x24\xA0\x00\x00"
-	shellcode += b"\x00\x48\x63\x44\x24\x28\x48\x8B\x4C\x24\x30\x48\x8B\x49\x18\x48"
-	shellcode += b"\x8B\x04\xC1\x48\x8B\x80\x90\x00\x00\x00\x48\x89\x84\x24\xA8\x00"
-	shellcode += b"\x00\x00\x48\xC7\x84\x24\xB0\x00\x00\x00\x00\x00\x00\x00\x48\x8D"
-	shellcode += b"\x8C\x24\x98\x00\x00\x00\xFF\x94\x24\x90\x00\x00\x00\x48\x63\x44"
-	shellcode += b"\x24\x28\x48\x8B\x4C\x24\x30\x48\x8B\x49\x20\x48\x8B\x94\x24\xB0"
-	shellcode += b"\x00\x00\x00\x48\x89\x14\xC1\xE9\x58\xFF\xFF\xFF\x48\x8B\x44\x24"
-	shellcode += b"\x30\xC7\x40\x04\x00\x00\x00\x00\x8B\x44\x24\x38\xE9\x06\x01\x00"
-	shellcode += b"\x00\xE9\x01\x01\x00\x00\x4C\x8D\x4C\x24\x4C\x41\xB8\x40\x00\x00"
-	shellcode += b"\x00\xBA\x00\x10\x00\x00\x48\xB9\x00\x40\xEC\x42\x01\x00\x00\x00"
-	shellcode += b"\xFF\x54\x24\x70\xB9\x28\x00\x00\x00\xFF\x54\x24\x58\x48\xB9\xF8"
-	shellcode += b"\x41\xEC\x42\x01\x00\x00\x00\x48\x89\x01\x4C\x8D\x4C\x24\x4C\x44"
-	shellcode += b"\x8B\x44\x24\x4C\xBA\x00\x10\x00\x00\x48\xB9\x00\x40\xEC\x42\x01"
-	shellcode += b"\x00\x00\x00\xFF\x54\x24\x70\x48\xB8\xF8\x41\xEC\x42\x01\x00\x00"
-	shellcode += b"\x00\x48\x8B\x00\x48\x89\x44\x24\x50\xC7\x44\x24\x40\x00\x00\x00"
-	shellcode += b"\x00\xEB\x0A\x8B\x44\x24\x40\xFF\xC0\x89\x44\x24\x40\x48\x63\x44"
-	shellcode += b"\x24\x40\x48\x83\xF8\x28\x73\x10\x48\x63\x44\x24\x40\x48\x8B\x4C"
-	shellcode += b"\x24\x50\xC6\x04\x01\x00\xEB\xDB\xB9\x30\x02\x00\x00\xFF\x54\x24"
-	shellcode += b"\x58\x48\x8B\x4C\x24\x50\x48\x89\x41\x10\xB9\x00\x01\x00\x00\xFF"
-	shellcode += b"\x54\x24\x58\x48\x8B\x4C\x24\x50\x48\x89\x41\x18\xC7\x44\x24\x44"
-	shellcode += b"\x00\x00\x00\x00\xEB\x0A\x8B\x44\x24\x44\xFF\xC0\x89\x44\x24\x44"
-	shellcode += b"\x48\x63\x44\x24\x44\x48\x3D\x00\x01\x00\x00\x73\x14\x48\x63\x44"
-	shellcode += b"\x24\x44\x48\x8B\x4C\x24\x50\x48\x8B\x49\x18\xC6\x04\x01\x00\xEB"
-	shellcode += b"\xD5\xB9\x00\x01\x00\x00\xFF\x54\x24\x58\x48\x8B\x4C\x24\x50\x48"
-	shellcode += b"\x89\x41\x20\x8B\x44\x24\x38\x48\x81\xC4\xC8\x00\x00\x00\xC3\xCC"
-
-	# Replacing shellcode constants with updates via sigs
-	shellcode = shellcode.replace((0x142EC41F8).to_bytes(8,'little'), offsets['NODICE_MGR'].to_bytes(8,'little'),len(shellcode))
-	shellcode = shellcode.replace((0x142EC4000).to_bytes(8,'little'), (offsets['NODICE_MGR']&(0xfffffffffffff000)).to_bytes(8,'little'),len(shellcode))
-	shellcode = shellcode.replace((0x142EC41F0).to_bytes(8,'little'), offsets['ORIGINAL_GTID_FUNC'].to_bytes(8,'little'),len(shellcode))
-	shellcode = shellcode.replace((0x14163F290).to_bytes(8,'little'), offsets['GET_LOCAL_PLAYER_FUNC'].to_bytes(8,'little'),len(shellcode))
-	shellcode = shellcode.replace((0x147B3D840).to_bytes(8,'little'), offsets['THREAD_CONTROL_FUNC'].to_bytes(8,'little'),len(shellcode))
-	shellcode = shellcode.replace((0x1444AD7D0).to_bytes(8,'little'), offsets['CLIENT_GAME_CONTEXT'].to_bytes(8,'little'),len(shellcode))
-	shellcode = shellcode.replace((0x141640090).to_bytes(8,'little'), offsets['GET_PLAYER_BY_INDEX_FUNC'].to_bytes(8,'little'),len(shellcode))
-	shellcode = shellcode.replace((0x143187160).to_bytes(8,'little'), offsets['GAME_MALLOC'].to_bytes(8,'little'),len(shellcode))
-	shellcode = shellcode.replace((0x143186220).to_bytes(8,'little'), offsets['GAME_VIRTUALPROTECT'].to_bytes(8,'little'),len(shellcode))
-	shellcode = shellcode.replace((0x143186528).to_bytes(8,'little'), offsets['GAME_GET_CURRENT_THREAD_ID'].to_bytes(8,'little'),len(shellcode))
-	shellcode = shellcode.replace((0x1444B5288).to_bytes(8,'little'), offsets['GAME_APPROVED_THREAD'].to_bytes(8,'little'),len(shellcode))
-	shellcode = shellcode.replace((0x144522DD8).to_bytes(8,'little'), offsets['DX11RENDERER'].to_bytes(8,'little'),len(shellcode))
-	shellcode = shellcode.replace((0x140A67680).to_bytes(8,'little'), offsets['GET_ENTITY_DATA'].to_bytes(8,'little'),len(shellcode))
-	
-	ogtid = c_ulonglong() 
-	tmp = c_ulonglong() 
-
-	mem = MemAccess(pHandle)
-
-	# Check the pointer swap to see if pointer manager is already installed
-	if (mem[offsets['GAME_GET_CURRENT_THREAD_ID']](0).me() == offsets['CODECAVE_ADDR']):
-		print ("[+] Pointer Manager Already Installed")
-		return
-
-	# Retrieve addr for GetCurrentThreadId() inside the IAT
-	api.ReadProcessMemory(pHandle,LPCVOID(offsets['GAME_GET_CURRENT_THREAD_ID']),byref(ogtid),c_int(8),None)
-	protection = DWORD()
-	# Make our code cave writable
-	api.VirtualProtectEx(pHandle,LPVOID(offsets['CODECAVE_ADDR']&PAGE_FLR),c_int(PAGE_SIZE),DWORD(PAGE_RWX),byref(protection))
-	# Take the true GCTID() addr and write it to our code cave, as a global static pointer
-	api.WriteProcessMemory(pHandle,LPCVOID(offsets['ORIGINAL_GTID_FUNC']),byref(ogtid),c_int(8),None)
-	# Prepare a buffer with our shell code
-	buff = (c_ubyte * len(shellcode)).from_buffer_copy(shellcode)
-	# Write our shell code into the code cave
-	api.WriteProcessMemory(pHandle,LPCVOID(offsets['CODECAVE_ADDR']),buff,c_int(len(shellcode)),None)
-	# Close up the cave with original memory protections
-	api.VirtualProtectEx(pHandle,LPVOID(offsets['CODECAVE_ADDR']&PAGE_FLR),c_int(PAGE_SIZE),protection,byref(protection))
-	# Next, lets modify memory protections of IAT to hook GCTID and point it to our codecave
-	api.VirtualProtectEx(pHandle,LPVOID(offsets['GAME_GET_CURRENT_THREAD_ID']&PAGE_FLR),c_int(PAGE_SIZE),DWORD(PAGE_RWX),byref(protection))
-	# Open the flood gates, replace original GCTID() funcptr with NoDiceHandler()
-	api.WriteProcessMemory(pHandle,LPCVOID(offsets['GAME_GET_CURRENT_THREAD_ID']),byref(c_ulonglong(offsets['CODECAVE_ADDR'])),c_int(8),None)
-	# Close up the cave with original memory protections
-	api.VirtualProtectEx(pHandle,LPVOID(offsets['GAME_GET_CURRENT_THREAD_ID']&PAGE_FLR),c_int(PAGE_SIZE),protection,byref(protection))
-	print ("[+] Pointer Manager Successfully Installed")
+	offsets = build_offsets(pHandle)	
+	patch(pHandle, 0x14158A606, b"\x30\xD2\x90\xE9");
 
 

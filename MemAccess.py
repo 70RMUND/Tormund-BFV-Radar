@@ -432,3 +432,14 @@ def get_buildtime(pHandle):
 	
 global api
 api = WinApi()
+
+
+def patch(pHandle,addr,bytes):
+	PAGE_SIZE = 0x1000
+	PAGE_FLR = 0xFFFFFFFFFFFFF000
+	PAGE_RWX = 0x40
+	protection = DWORD()
+	api.VirtualProtectEx(pHandle,LPVOID(addr&PAGE_FLR),c_int(PAGE_SIZE),DWORD(PAGE_RWX),byref(protection))
+	buff = (c_ubyte * len(bytes)).from_buffer_copy(bytes)
+	api.WriteProcessMemory(pHandle,LPCVOID(addr),buff,c_int(len(bytes)),None)
+	api.VirtualProtectEx(pHandle,LPVOID(addr&PAGE_FLR),c_int(PAGE_SIZE),protection,byref(protection))
