@@ -4,6 +4,51 @@ import os
 import sys
 import time
 
+class MEMORY_BASIC_INFORMATION(Structure):
+	_fields_ = [('BaseAddress', c_void_p),
+	 ('AllocationBase', c_void_p),
+	 ('AllocationProtect', DWORD),
+	 ('RegionSize', c_size_t),
+	 ('State', DWORD),
+	 ('Protect', DWORD),
+	 ('Type', DWORD)]
+
+class MEMORY_BASIC_INFORMATION64(Structure):
+	_fields_ = [('BaseAddress', c_ulonglong),
+	 ('AllocationBase', c_ulonglong),
+	 ('AllocationProtect', DWORD),
+	 ('alignement1', DWORD),
+	 ('RegionSize', c_ulonglong),
+	 ('State', DWORD),
+	 ('Protect', DWORD),
+	 ('Type', DWORD),
+	 ('alignement2', DWORD)]
+	 
+class SYSTEM_INFO(Structure):
+	_fields_ = [('wProcessorArchitecture', WORD),
+	 ('wReserved', WORD),
+	 ('dwPageSize', DWORD),
+	 ('lpMinimumApplicationAddress', LPVOID),
+	 ('lpMaximumApplicationAddress', LPVOID),
+	 ('dwActiveProcessorMask', c_ulonglong),
+	 ('dwNumberOfProcessors', DWORD),
+	 ('dwProcessorType', DWORD),
+	 ('dwAllocationGranularity', DWORD),
+	 ('wProcessorLevel', WORD),
+	 ('wProcessorRevision', WORD)]
+	
+PAGE_EXECUTE_READWRITE = 64
+PAGE_EXECUTE_READ = 32
+PAGE_READONLY = 2
+PAGE_READWRITE = 4
+PAGE_NOCACHE = 512
+PAGE_WRITECOMBINE = 1024
+PAGE_GUARD = 256
+
+MEM_COMMIT = 4096
+MEM_FREE = 65536
+MEM_RESERVE = 8192
+
 class WinApi():
 	def __init__(self):
 		self.CreateToolhelp32Snapshot = CDLL("kernel32.dll").CreateToolhelp32Snapshot
@@ -19,6 +64,10 @@ class WinApi():
 		self._access = 0
 		self._cache = {}
 		self._cache_en = True
+		
+		si = self.GetNativeSystemInfo()
+		self.max_addr = si.lpMaximumApplicationAddress
+		self.min_addr = si.lpMinimumApplicationAddress
 		
 	def get_processid_by_name(self,name):
 		class PROCESSENTRY32(Structure):
@@ -206,8 +255,7 @@ class WinApi():
 			str += chr(c.value[0])
 			buffer.value += 1
 		if (self._debug): print ("rpm_uint64 -> addr: 0x%x val: %s"%(addr,str))
-		return str
-		
+		return str		
 			
 	def rpm_vec4(self,handle,addr):
 		vec4 = c_float * 4
@@ -228,6 +276,46 @@ class WinApi():
 		if (ret == 0):
 			return 0
 		return buffer
+		
+	def GetNativeSystemInfo(self):
+		si = SYSTEM_INFO()
+		windll.kernel32.GetNativeSystemInfo(byref(si))
+		return si
+		
+	def VirtualQueryEx(self, handle, lpAddress):
+		mbi = MEMORY_BASIC_INFORMATION()
+		if not windll.kernel32.VirtualQueryEx(handle, LPCVOID(lpAddress), byref(mbi), sizeof(mbi)):
+			print('Error VirtualQueryEx: 0x%08X 0x%08X' % (lpAddress,GetLastError()))
+		return mbi
+		
+	def VirtualQueryEx64(self, handle, lpAddress):
+		mbi = MEMORY_BASIC_INFORMATION64()
+		if not windll.kernel32.VirtualQueryEx(handle, LPCVOID(lpAddress), byref(mbi), sizeof(mbi)):
+			raise ProcessException('Error VirtualQueryEx: 0x%08X' % lpAddress)
+		return mbi
+		
+	def iter_region(self, handle,start_offset=None, end_offset=None, protec=None, optimizations=None):
+		
+		offset = start_offset or self.min_addr
+		end_offset = end_offset or self.max_addr
+
+		while True:
+			if offset >= end_offset:
+				break
+			mbi = self.VirtualQueryEx64(handle,offset)
+			offset = mbi.BaseAddress
+			chunk = mbi.RegionSize
+			protect = mbi.Protect
+			state = mbi.State
+			if state & MEM_FREE or state & MEM_RESERVE:
+				offset += chunk
+				continue
+			if protec:
+				if not protect & protec or protect & PAGE_NOCACHE or protect & PAGE_WRITECOMBINE or protect & PAGE_GUARD:
+					offset += chunk
+					continue
+			yield offset, chunk
+			offset += chunk
 
 class MemAccess(object):
 	def __init__(self,pHandle):
@@ -320,6 +408,19 @@ class MemAccess(object):
 	def read_float(self,off=0):
 		value = api.rpm_float(self.pHandle,off+self.next_base)
 		return value
+
+
+class memscan():
+	def __init__(self,pHandle):
+		for a in api.iter_region(pHandle):
+			virtaddr = a[0]
+			virtsize = a[1]
+			data = bytearray(virtsize)
+			datatype = (c_ubyte*virtsize)
+			buf = datatype.from_buffer(data)
+			api.ReadProcessMemory(pHandle,LPCVOID(virtaddr),buf,c_int(virtsize),None)
+			data.find(b'\xff\xc0\x22\x90')
+			del data
 		
 		
 class sigscan():

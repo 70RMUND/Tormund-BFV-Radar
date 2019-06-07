@@ -40,7 +40,7 @@ offsets = {}
 class PointerManager():
 	def __init__(self,pHandle):
 		self.mem = MemAccess(pHandle)
-		self.OBFUS_MGR = 0x1447555D0
+		self.OBFUS_MGR = 0x1447565d0
 		
 	@staticmethod
 	def decrypt_ptr(encptr, key):
@@ -205,37 +205,37 @@ def build_offsets(pHandle):
 	print("[+] CLIENTSHRINKINGPLAYAREA         = %x"%(addr))
 	offsets["CLIENTSHRINKINGPLAYAREA"] = mem[addr].read_int32(9)+addr+9+4
 	#addr = find_typeinfo("ClientSoldierEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientSoldierEntity"] = 0x145325980#addr
+	offsets["ClientSoldierEntity"] = 0x0000000145326980#addr
 	print("[+] ClientSoldierEntity             = %x"%(offsets["ClientSoldierEntity"]))
 	#addr = find_typeinfo("ClientVehicleEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientVehicleEntity"] = 0x1452356C0 #addr
+	offsets["ClientVehicleEntity"] = 0x00000001452366C0 #addr
 	print("[+] ClientVehicleEntity             = %x"%(offsets["ClientVehicleEntity"]))
 	#addr = find_typeinfo("ClientSupplySphereEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientSupplySphereEntity"] = 0x1450500A0#addr
+	offsets["ClientSupplySphereEntity"] = 0x00000001450510A0#addr
 	print("[+] ClientSupplySphereEntity        = %x"%(offsets["ClientVehicleEntity"]))
 	#addr = find_typeinfo("ClientCombatAreaTriggerEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientCombatAreaTriggerEntity"] = 0x1452365D0# addr
+	offsets["ClientCombatAreaTriggerEntity"] = 0x00000001452375D0# addr
 	print("[+] ClientCombatAreaTriggerEntity   = %x"%(offsets["ClientCombatAreaTriggerEntity"]))
 	#addr = find_typeinfo("ClientExplosionPackEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientExplosionPackEntity"] = 0x14532BAC0#addr
+	offsets["ClientExplosionPackEntity"] = 0x000000014532CAC0#addr
 	print("[+] ClientExplosionPackEntity       = %x"%(offsets["ClientExplosionPackEntity"]))
 	#addr = find_typeinfo("ClientProxyGrenadeEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientProxyGrenadeEntity"] = 0x014532B790#addr
+	offsets["ClientProxyGrenadeEntity"] = 0x000000014532C790#addr
 	print("[+] ClientProxyGrenadeEntity        = %x"%(offsets["ClientProxyGrenadeEntity"]))
 	#addr = find_typeinfo("ClientGrenadeEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientGrenadeEntity"] = 0x14532B9B0#add
+	offsets["ClientGrenadeEntity"] = 0x000000014532C9B0#add
 	print("[+] ClientGrenadeEntity             = %x"%(offsets["ClientGrenadeEntity"]))
 	#addr = find_typeinfo("ClientInteractableGrenadeEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientInteractableGrenadeEntity"] = 0x145057FB0#addr 
+	offsets["ClientInteractableGrenadeEntity"] = 0x0000000145058FB0#addr 
 	print("[+] ClientInteractableGrenadeEntity = %x"%(offsets["ClientInteractableGrenadeEntity"]))
 	#addr = find_typeinfo("ClientCapturePointEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientCapturePointEntity"] = 0x145045890#addr
+	offsets["ClientCapturePointEntity"] = 0x0000000145046890#addr
 	print("[+] ClientCapturePointEntity        = %x"%(offsets["ClientCapturePointEntity"]))
 	#addr = find_typeinfo("ClientLootItemEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientLootItemEntity"] = 0x1450D1280#addr
+	offsets["ClientLootItemEntity"] = 0x00000001450D2280#addr
 	print("[+] ClientLootItemEntity            = %x"%(offsets["ClientLootItemEntity"]))
 	#addr = find_typeinfo("ClientArmorVestLootItemEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientArmorVestLootItemEntity"] = 0x1450D25A0#addr
+	offsets["ClientArmorVestLootItemEntity"] = 0x00000001450D35A0#addr
 	print("[+] ClientArmorVestLootItemEntity   = %x"%(offsets["ClientArmorVestLootItemEntity"]))
 	print ("[+] Done")
 	return offsets
@@ -563,6 +563,8 @@ def Process(pHandle,cnt):
 	g_gamedata.myviewmatrix = MyViewmatrix
 	g_gamedata.mytransform = MyTransform
 	
+	#print (hex(MySoldier))
+	
 	if MySoldier == 0:
 		g_gamedata.myviewmatrix = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]]
 		g_gamedata.mytransform = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]]
@@ -634,7 +636,7 @@ def Process(pHandle,cnt):
 	while (1):
 		UIObj = mem[offsets["OBJECTIVE_MANAGER"]](0)(0x38).read_uint64(i*8)
 		i+=1
-		if mem[UIObj].read_uint64(0) != 0x1438b0158:
+		if mem[UIObj].read_uint64(0) != 0x1438B1158:
 			break
 		
 		Transform = mem[UIObj].read_mat4(OD_Transform)
@@ -803,6 +805,6 @@ def initialize(pHandle):
 	PAGE_FLR = 0xFFFFFFFFFFFFF000
 	PAGE_RWX = 0x40
 	offsets = build_offsets(pHandle)	
-	patch(pHandle, 0x14158A606, b"\x30\xD2\x90\xE9");
+	patch(pHandle, 0x1415884C6, b"\x30\xD2\x90\xE9");
 
 

@@ -5,6 +5,7 @@ import random
 import math
 import sys
 import time
+import MemAccess
 from ctypes import c_float,cdll,c_int
   
 GetAsyncKeyState = cdll.user32.GetAsyncKeyState
@@ -465,6 +466,8 @@ class Radar():
 if __name__ == "__main__":
 	print ("[+] Tormund's External Radar v1.0 for Battlefield V")
 	
+	
+	
 	if len(sys.argv) == 1:
 		w = 800
 		h = 600
@@ -488,6 +491,15 @@ if __name__ == "__main__":
 		print ("[+] Error: Cannot find BFV.exe")
 		exit(1)
 	print ("[+] BFV.exe found, Handle: 0x%x"%(phandle))
+	
+	#print("1")
+	#a = MemAccess.memscan(phandle)
+	#print("2")
+	#system("pause")
+	#print (a)
+	#exit(1)
+	
+	
 	BFV.initialize(phandle) # Gather offsets, patch the game
 	print ("[+] Starting Radar...")
 	Radar = Radar(w,h)
