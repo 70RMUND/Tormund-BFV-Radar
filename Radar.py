@@ -6,7 +6,8 @@ import math
 import sys
 import time
 import MemAccess
-from ctypes import c_float,cdll,c_int
+from ctypes import *
+from ctypes.wintypes import *
   
 GetAsyncKeyState = cdll.user32.GetAsyncKeyState
   
@@ -369,13 +370,13 @@ class Radar():
 			elif ("U_BREN" in LootEntity.ItemName):
 				if (LootEntity.LootName[-5:] == "Tier2"):
 					color = Color.GREEN
-					self.Text("b",color,x,y)
+					self.Text("B",color,x,y)
 				elif (LootEntity.LootName[-5:] == "Tier3"):
 					color = self.blink()
-					self.Text("b",color,x,y)
+					self.Text("B",color,x,y)
 				else:
 					color = Color.WHITE
-					self.Text("b",color,x,y)
+					self.Text("B",color,x,y)
 			elif ("BoltAction" in LootEntity.ItemName):
 				if (LootEntity.LootName[-5:] == "Tier2"):
 					color = Color.GREEN
@@ -399,7 +400,16 @@ class Radar():
 				else:
 					color = Color.WHITE
 					self.Text(".",color,x,y)
-					
+			elif LootEntity.VestEntity:
+				if (LootEntity.LootName[-5:] == "Tier3"):
+					color = self.blink()
+					self.Text("A",color,x,y)
+				else:
+					color = Color.YELLOW
+					self.Text("A",color,x,y)
+			else:
+				color = Color.WHITE
+				self.Text(".",color,x,y)
 
 			
 	def blink(self):
@@ -484,6 +494,9 @@ if __name__ == "__main__":
 			exit(1)
 	
 	print ("[+] Searching for BFV.exe...")
+	
+
+	
 	phandle = BFV.GetHandle()
 	if (phandle):
 		time.sleep(1)
@@ -492,15 +505,8 @@ if __name__ == "__main__":
 		exit(1)
 	print ("[+] BFV.exe found, Handle: 0x%x"%(phandle))
 	
-	#print("1")
-	#a = MemAccess.memscan(phandle)
-	#print("2")
-	#system("pause")
-	#print (a)
-	#exit(1)
-	
-	
 	BFV.initialize(phandle) # Gather offsets, patch the game
+	
 	print ("[+] Starting Radar...")
 	Radar = Radar(w,h)
 	print ("[+] Done")

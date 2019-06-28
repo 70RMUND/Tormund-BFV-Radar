@@ -17,11 +17,11 @@ GameRenderer_RenderView = 0x60 #
 RenderView_ViewMatrix = 0x2F0 #
 HC_Health = 0x20
 HC_MaxHealth = 0x24
-CVE_TeamID = 0x1bc
-CSE_HealthComponent = 0x270 #
+CVE_TeamID = 0x1c4
+CSE_HealthComponent = 0x278 #
 CCPE_Transform = 0x3c0
-CSE_Player = 0x328
-CVE_VehicleEntityData = 0x30
+CSE_Player = 0x338
+CVE_VehicleEntityData = 0x38
 VED_ControllableType = 0x1F8
 CCAT_ActiveTrigger = 0xD84
 CCAT_TriggerData = 0x28
@@ -40,7 +40,13 @@ offsets = {}
 class PointerManager():
 	def __init__(self,pHandle):
 		self.mem = MemAccess(pHandle)
-		self.OBFUS_MGR = 0x1447565d0
+		self.pHandle = pHandle
+		
+		self.OBFUS_MGR = 0
+		if (offsets["OBFUS_MGR"] == 0):
+			offsets["OBFUS_MGR"] = self.GetObfuscationMgr()
+		else:
+			self.OBFUS_MGR = offsets["OBFUS_MGR"]
 		
 	@staticmethod
 	def decrypt_ptr(encptr, key):
@@ -58,10 +64,96 @@ class PointerManager():
 		ret |= GRAB_BYTE(encptr,7)<< 56
 		ret &= 0x7FFFFFFFFFFFFFFF
 		return ret
-
+		
+		
+	def GetObfuscationMgr(self):
+		api._cache_en = False
+		print ("[+] Searching for ObfuscationMgr...")
+		addr = -1
+		OM = 0
+		ss = StackAccess(self.pHandle,self.mem[0x144A5AD18].read_uint32(0))
+		while (1):
+			addr = -1
+			time.sleep(0.1)
+			buf = ss.read()
+			addr = buf.find(b"\x12\x69\xa3\xd7\xef\x47\x84\x59")
+			if (addr==-1):
+				addr = buf.find(b"\xae\x15\x75\xa7\x6e\x35\xe4\x2c")
+			if (addr>-1):
+				for i in range(-160,160,8):
+					testptr = int.from_bytes(buf[addr+i:addr+8+i],"little")
+					if self.mem[testptr-0x120].read_uint64(0x0) == 0x14394E3C8:
+						OM = testptr-0x120
+						self.OBFUS_MGR = OM
+						break
+					elif self.mem[testptr].read_uint64(0x0) == 0x14394E3C8:
+						OM = testptr
+						self.OBFUS_MGR = OM
+						break
+				if (OM>0): break
+		ss.close()
+		print ("[+] Found ObfuscationMgr @ 0x%08x "%(OM))
+		api._cache_en = True
+		return OM
+		
+	def GetDx11Secret(self):
+		api._cache_en = False
+		ss = StackAccess(self.pHandle,self.mem[0x144A5AD18].read_uint32(0))
+		if (self.mem[self.OBFUS_MGR].read_uint64(0x100) != 0):
+			addr = -1
+			OM = 0
+			i = 0
+			while (1):
+				addr = -1
+				time.sleep(0.1)
+				buf = ss.read()
+				addr = buf.find((0x148B98C7E).to_bytes(8, byteorder='little'))
+				if (addr>-1):
+					i=-120
+					if (int.from_bytes(buf[addr+i:addr+i+8],"little") == offsets["OBFUS_MGR"]):
+						i=-56
+						testptr = int.from_bytes(buf[addr+i:addr+8+i],"little")
+						if (testptr>0x100000000000000):
+							if (testptr == offsets["Dx11Secret"]):
+								continue
+							offsets["Dx11Secret"] = testptr
+							api._cache_en = True
+							ss.close()
+							return offsets["Dx11Secret"]
+		else:
+			offsets["Dx11Secret"] = 0
+			api._cache_en = True
+			ss.close()
+			return 0
+			
+	def CheckCryptMode(self):
+		api._cache_en = False
+		DecFunc = self.mem[self.OBFUS_MGR].read_uint64(0xE0) ^ self.mem[self.OBFUS_MGR].read_uint64(0xF8)
+		Dx11EncBuffer = self.mem[self.OBFUS_MGR].read_uint64(0x100)
+		
+		if ((Dx11EncBuffer != 0) and (offsets["Dx11EncBuffer"] != Dx11EncBuffer)):
+			self.GetDx11Secret()
+			print ("[+] Dynamic key loaded, root key set to 0x%x"%(offsets["Dx11Secret"]))
+			offsets["Dx11EncBuffer"] = Dx11EncBuffer
+			offsets["CryptMode"] = 1
+		elif (offsets["CryptMode"] == 0):
+			if ((DecFunc == 0x1414A9330) and (Dx11EncBuffer != 0)) :
+				self.GetDx11Secret()
+				print ("[+] Dynamic key loaded, retrieving key...")
+				offsets["Dx11EncBuffer"] = Dx11EncBuffer
+				offsets["CryptMode"] = 1
+		elif (offsets["CryptMode"] == 1):
+			if (DecFunc != 0x1414A9330):
+				offsets["Dx11Secret"] = 0x598447EFD7A36912
+				print ("[+] Static key loaded, root key set to 0x%x"%(offsets["Dx11Secret"]))
+				offsets["CryptMode"] = 0
+		api._cache_en = True
+		
 	def hashtable_find(self, table, key):
 		mem = self.mem
 		bucketCount = mem[table].read_uint32(0x10)
+		if (bucketCount == 0):
+			return 0
 		elemCount = mem[table].read_uint32(0x14)
 		startcount = key % bucketCount
 		node = mem[table](0x8)(0x8*startcount).me()
@@ -75,17 +167,18 @@ class PointerManager():
 			next = mem[node].read_uint64(0x16)
 
 			if first == key:
+				#print ("Key: 0x%016x Node: 0x%016x"%(key^ mem[self.OBFUS_MGR].read_uint64(0xE0),node))
 				return second		
 			elif (next == 0):
 				return 0
 				
 			node = next
-	
-	
+
 	def GetLocalPlayer(self):
+		self.CheckCryptMode()
 		mem = self.mem
 		ClientPlayerManager = mem[offsets["CLIENT_GAME_CONTEXT"]](0).read_uint64(0x68)
-		ObfManager = mem[self.OBFUS_MGR].read_uint64(0)
+		ObfManager = self.OBFUS_MGR
 		LocalPlayerListXorValue = mem[ClientPlayerManager].read_uint64(0xF0)
 		LocalPlayerListKey = LocalPlayerListXorValue ^ mem[ObfManager].read_uint64(0xE0)
 		
@@ -99,15 +192,17 @@ class PointerManager():
 			return 0
 			
 		XorValue1 = mem[EncryptedPlayerManager].read_uint64(0x20) ^ mem[EncryptedPlayerManager].read_uint64(0x8)
-		XorValue2 = mem[EncryptedPlayerManager].read_uint64(0x10) ^ 0x598447EFD7A36912
+		XorValue2 = mem[EncryptedPlayerManager].read_uint64(0x10) ^ offsets["Dx11Secret"]
+			
 		LocalPlayer = mem[XorValue2].read_uint64(0) ^ XorValue1
 		
 		return LocalPlayer
 		
 	def GetPlayerById(self,id):
+		self.CheckCryptMode()
 		mem = self.mem
 		ClientPlayerManager = mem[offsets["CLIENT_GAME_CONTEXT"]](0).read_uint64(0x68)
-		ObfManager = mem[self.OBFUS_MGR].read_uint64(0)
+		ObfManager = self.OBFUS_MGR
 		PlayerListXorValue = mem[ClientPlayerManager].read_uint64(0xF8)
 		PlayerListKey = PlayerListXorValue ^ mem[ObfManager].read_uint64(0xE0)
 		
@@ -121,15 +216,17 @@ class PointerManager():
 			return 0
 			
 		XorValue1 = mem[EncryptedPlayerManager].read_uint64(0x20) ^ mem[EncryptedPlayerManager].read_uint64(0x8)
-		XorValue2 = mem[EncryptedPlayerManager].read_uint64(0x10) ^ 0x598447EFD7A36912
+		XorValue2 = mem[EncryptedPlayerManager].read_uint64(0x10) ^ offsets["Dx11Secret"]
+		
 		ClientPlayer = mem[XorValue2].read_uint64(0x8*id) ^ XorValue1
 		
 		return ClientPlayer
 		
 	def GetSpectatorById(self,id):
+		self.CheckCryptMode()
 		mem = self.mem
 		ClientPlayerManager = mem[offsets["CLIENT_GAME_CONTEXT"]](0).read_uint64(0x68)
-		ObfManager = mem[self.OBFUS_MGR].read_uint64(0)
+		ObfManager = self.OBFUS_MGR
 		PlayerListXorValue = mem[ClientPlayerManager].read_uint64(0xF0-8)
 		PlayerListKey = PlayerListXorValue ^ mem[ObfManager].read_uint64(0xE0)
 		
@@ -143,33 +240,42 @@ class PointerManager():
 			return 0
 			
 		XorValue1 = mem[EncryptedPlayerManager].read_uint64(0x20) ^ mem[EncryptedPlayerManager].read_uint64(0x8)
-		XorValue2 = mem[EncryptedPlayerManager].read_uint64(0x10) ^ 0x598447EFD7A36912
+		XorValue2 = mem[EncryptedPlayerManager].read_uint64(0x10) ^ offsets["Dx11Secret"]
+		
 		ClientPlayer = mem[XorValue2].read_uint64(0x8*id) ^ XorValue1
 		
 		return ClientPlayer
 		
 	def GetEntityKey(self,PointerKey):
+		self.CheckCryptMode()
 		mem = self.mem
-		ObfManager = mem[self.OBFUS_MGR].read_uint64(0)
+		ObfManager = self.OBFUS_MGR
 		HashTableKey = PointerKey ^ mem[ObfManager].read_uint64(0xE0)
+		
 		hashtable = ObfManager+0x78
 		EncryptionKey = self.hashtable_find(hashtable, HashTableKey)
-		EncryptionKey ^= 0x598447EFD7A36912
+		
 		if (EncryptionKey == 0):
 			return 0
+
+		EncryptionKey ^= offsets["Dx11Secret"]
+
 		return EncryptionKey
 		
 	def DecryptPointer(self,EncPtr,PointerKey):
+		self.CheckCryptMode()
 		if not (EncPtr&0x8000000000000000):
 			return 0
 		mem = self.mem
-		ObfManager = mem[self.OBFUS_MGR].read_uint64(0)
+		ObfManager = self.OBFUS_MGR
 		HashTableKey = PointerKey ^ mem[ObfManager].read_uint64(0xE0)
 		hashtable = ObfManager+0x78
 		EncryptionKey = self.hashtable_find(hashtable, HashTableKey)
-		EncryptionKey ^= 0x598447EFD7A36912
+		
 		if (EncryptionKey == 0):
 			return 0
+				
+		EncryptionKey ^= offsets["Dx11Secret"]
 		
 		return PointerManager.decrypt_ptr(EncPtr,EncryptionKey)
 
@@ -189,6 +295,10 @@ def build_offsets(pHandle):
 	print ("[+] Gathering offsets, please wait...")
 	x = sigscan(pHandle)
 	mem = MemAccess(pHandle)
+	offsets["OBFUS_MGR"] = 0;
+	offsets["CryptMode"] = 0
+	offsets["Dx11Secret"] = 0x598447EFD7A36912
+	offsets["Dx11EncBuffer"] = 0
 	offsets["TIMESTAMP"] = get_buildtime(pHandle)
 	addr = x.scan("48 8B 0D ? ? ? ? 48 8B 01 B2 01 FF 50")
 	offsets["GAMERENDERER"] = mem[addr].read_int32(3)+addr+3+4
@@ -205,37 +315,37 @@ def build_offsets(pHandle):
 	print("[+] CLIENTSHRINKINGPLAYAREA         = %x"%(addr))
 	offsets["CLIENTSHRINKINGPLAYAREA"] = mem[addr].read_int32(9)+addr+9+4
 	#addr = find_typeinfo("ClientSoldierEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientSoldierEntity"] = 0x0000000145326980#addr
+	offsets["ClientSoldierEntity"] = 0x00000001452C15C0#addr
 	print("[+] ClientSoldierEntity             = %x"%(offsets["ClientSoldierEntity"]))
 	#addr = find_typeinfo("ClientVehicleEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientVehicleEntity"] = 0x00000001452366C0 #addr
+	offsets["ClientVehicleEntity"] = 0x00000001451CAE00 #addr
 	print("[+] ClientVehicleEntity             = %x"%(offsets["ClientVehicleEntity"]))
 	#addr = find_typeinfo("ClientSupplySphereEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientSupplySphereEntity"] = 0x00000001450510A0#addr
+	offsets["ClientSupplySphereEntity"] = 0x0000000144FEFA70#addr
 	print("[+] ClientSupplySphereEntity        = %x"%(offsets["ClientVehicleEntity"]))
 	#addr = find_typeinfo("ClientCombatAreaTriggerEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientCombatAreaTriggerEntity"] = 0x00000001452375D0# addr
+	offsets["ClientCombatAreaTriggerEntity"] = 0x00000001451CBDD0# addr
 	print("[+] ClientCombatAreaTriggerEntity   = %x"%(offsets["ClientCombatAreaTriggerEntity"]))
 	#addr = find_typeinfo("ClientExplosionPackEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientExplosionPackEntity"] = 0x000000014532CAC0#addr
+	offsets["ClientExplosionPackEntity"] = 0x00000001452C71B0#addr
 	print("[+] ClientExplosionPackEntity       = %x"%(offsets["ClientExplosionPackEntity"]))
 	#addr = find_typeinfo("ClientProxyGrenadeEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientProxyGrenadeEntity"] = 0x000000014532C790#addr
+	offsets["ClientProxyGrenadeEntity"] = 0x00000001452C6E80#addr
 	print("[+] ClientProxyGrenadeEntity        = %x"%(offsets["ClientProxyGrenadeEntity"]))
 	#addr = find_typeinfo("ClientGrenadeEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientGrenadeEntity"] = 0x000000014532C9B0#add
+	offsets["ClientGrenadeEntity"] = 0x00000001452C70A0#add
 	print("[+] ClientGrenadeEntity             = %x"%(offsets["ClientGrenadeEntity"]))
 	#addr = find_typeinfo("ClientInteractableGrenadeEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientInteractableGrenadeEntity"] = 0x0000000145058FB0#addr 
+	offsets["ClientInteractableGrenadeEntity"] = 0x00000001450270A0#addr 
 	print("[+] ClientInteractableGrenadeEntity = %x"%(offsets["ClientInteractableGrenadeEntity"]))
 	#addr = find_typeinfo("ClientCapturePointEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientCapturePointEntity"] = 0x0000000145046890#addr
+	offsets["ClientCapturePointEntity"] = 0x000000014500D440#addr
 	print("[+] ClientCapturePointEntity        = %x"%(offsets["ClientCapturePointEntity"]))
 	#addr = find_typeinfo("ClientLootItemEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientLootItemEntity"] = 0x00000001450D2280#addr
+	offsets["ClientLootItemEntity"] = 0x000000014500B7A0#addr
 	print("[+] ClientLootItemEntity            = %x"%(offsets["ClientLootItemEntity"]))
 	#addr = find_typeinfo("ClientArmorVestLootItemEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientArmorVestLootItemEntity"] = 0x00000001450D35A0#addr
+	offsets["ClientArmorVestLootItemEntity"] = 0x00000001450447D0#addr
 	print("[+] ClientArmorVestLootItemEntity   = %x"%(offsets["ClientArmorVestLootItemEntity"]))
 	print ("[+] Done")
 	return offsets
@@ -259,6 +369,8 @@ def GetEncKey(pHandle,typeinfo):
 	api._cache_en = False
 	global keystore
 	mem = MemAccess(pHandle)
+	pm = PointerManager(pHandle)
+	
 	if (mem[typeinfo].read_uint64(0x88) == 0):
 		api._cache_en = cache_en
 		return 0
@@ -268,10 +380,16 @@ def GetEncKey(pHandle,typeinfo):
 		keystore = {}
 	if typeinfo in keystore:
 		api._cache_en = cache_en
+		#print ("[+] Typeinfo: 0x%x Encryption Key: 0x%x"% (typeinfo,keystore[typeinfo]))
 		return keystore[typeinfo]
 
 	pm = PointerManager(pHandle)
-	keystore[typeinfo] = pm.GetEntityKey(mem[typeinfo](0).me())
+	key = pm.GetEntityKey(mem[typeinfo](0).me())
+	
+	if key == 0:
+		return 0
+	
+	keystore[typeinfo] = key
 	
 	api._cache_en = cache_en	
 	print ("[+] Typeinfo: 0x%x Encryption Key: 0x%x"% (typeinfo,keystore[typeinfo]))
@@ -289,12 +407,14 @@ def GetEntityList(pHandle,typeinfo,flink_offset=0x80):
 	
 	while (flink):
 		ent = PointerManager.decrypt_ptr(flink,key)
+		if ent >= 0x100000000000:
+			return []
 		elist += [ent-flink_offset]
 		flink = mem[ent].read_uint64(0x0)
 		
 	return elist
 	
-def GetNextEntity(pHandle,Ptr,typeinfo,flink_offset=0x80):
+def GetNextEntity(pHandle,Ptr,typeinfo,flink_offset=0x88):
 	elist = []
 	mem = MemAccess(pHandle)
 	key = GetEncKey(pHandle,typeinfo)
@@ -318,12 +438,12 @@ def GetHandle():
 	
 def GetEntityTransform(pHandle,Entity):
 	mem = MemAccess(pHandle)
-	flags = mem[Entity](0x38).read_uint64(0x8)
+	flags = mem[Entity](0x40).read_uint64(0x8)
 	if flags == None:
 		return 0
 	_9 = (flags>>8)&0xFF
 	_10 = (flags>>16)&0xFF
-	transform = mem[Entity](0x38).read_mat4((0x20*(_10+(2*_9)))+0x10)
+	transform = mem[Entity](0x40).read_mat4((0x20*(_10+(2*_9)))+0x10)
 	return transform
 	
 def list_current_entities(pHandle):
@@ -534,16 +654,16 @@ def Process(pHandle,cnt):
 
 	def GetEntityVec4(pHandle,Entity):
 		mem = MemAccess(pHandle)
-		flags = mem[Entity](0x38).read_uint64(0x8)
+		flags = mem[Entity](0x40).read_uint64(0x8)
 		if flags == None:
 			return 0
 		_9 = (flags>>8)&0xFF
 		_10 = (flags>>16)&0xFF
 		_off = (0x20*(_10+(2*_9)))+0x10
-		v4 = [mem[Entity](0x38).read_uint32(_off+0x30),
-		mem[Entity](0x38).read_uint32(_off+0x34),
-		mem[Entity](0x38).read_uint32(_off+0x38),
-		mem[Entity](0x38).read_uint32(_off+0x40)]
+		v4 = [mem[Entity](0x40).read_uint32(_off+0x30),
+		mem[Entity](0x40).read_uint32(_off+0x34),
+		mem[Entity](0x40).read_uint32(_off+0x38),
+		mem[Entity](0x40).read_uint32(_off+0x40)]
 		return v4
 		
 	
@@ -563,6 +683,11 @@ def Process(pHandle,cnt):
 	g_gamedata.myviewmatrix = MyViewmatrix
 	g_gamedata.mytransform = MyTransform
 	
+	
+
+	#print (hex(MySoldier))
+	
+	
 	#print (hex(MySoldier))
 	
 	if MySoldier == 0:
@@ -573,7 +698,8 @@ def Process(pHandle,cnt):
 	
 	# Render Soldiers
 	g_gamedata.ClearSoldiers()
-	for Soldier in GetEntityList(pHandle,offsets["ClientSoldierEntity"],0x80):
+	for Soldier in GetEntityList(pHandle,offsets["ClientSoldierEntity"],0x88):
+		
 		# if you are me, skip
 		if (Soldier == MySoldier):
 			continue
@@ -589,6 +715,7 @@ def Process(pHandle,cnt):
 			
 		TeamId = mem[Soldier](CSE_Player).read_uint32(ClientPlayer_TeamID)
 		Transform = GetEntityTransform(pHandle,Soldier)
+		
 		
 		if Transform == 0:
 			continue
@@ -613,8 +740,7 @@ def Process(pHandle,cnt):
 	
 	# Render Vehicles
 	g_gamedata.ClearVehicles()
-	for Vehicle in GetEntityList(pHandle,offsets["ClientVehicleEntity"],0x80):
-
+	for Vehicle in GetEntityList(pHandle,offsets["ClientVehicleEntity"],0x88):
 		if (Vehicle == MyVehicle):
 			continue
 		Transform = GetEntityTransform(pHandle,Vehicle)
@@ -635,8 +761,9 @@ def Process(pHandle,cnt):
 	i=0
 	while (1):
 		UIObj = mem[offsets["OBJECTIVE_MANAGER"]](0)(0x38).read_uint64(i*8)
+
 		i+=1
-		if mem[UIObj].read_uint64(0) != 0x1438B1158:
+		if mem[UIObj].read_uint64(0) != 0x14383D318:
 			break
 		
 		Transform = mem[UIObj].read_mat4(OD_Transform)
@@ -707,7 +834,7 @@ def Process(pHandle,cnt):
 		g_gamedata.boundsstate = ST_SCAN
 	
 	g_gamedata.ClearExplosives()
-	for Explosive in GetEntityList(pHandle,offsets["ClientExplosionPackEntity"],0x80):
+	for Explosive in GetEntityList(pHandle,offsets["ClientExplosionPackEntity"],0x88):
 		Transform = GetEntityTransform(pHandle,Explosive)
 		Team = mem[Explosive].read_uint32(0x4d0)
 		ExplosiveData = GameExplosiveData()
@@ -717,7 +844,7 @@ def Process(pHandle,cnt):
 		g_gamedata.AddExplosive(ExplosiveData)
 
 	g_gamedata.ClearGrenades()
-	for Grenade in (GetEntityList(pHandle,offsets["ClientProxyGrenadeEntity"],0x80)+GetEntityList(pHandle,offsets["ClientGrenadeEntity"],0x80)+GetEntityList(pHandle,offsets["ClientInteractableGrenadeEntity"],0x80)):
+	for Grenade in (GetEntityList(pHandle,offsets["ClientProxyGrenadeEntity"],0x88)+GetEntityList(pHandle,offsets["ClientGrenadeEntity"],0x88)+GetEntityList(pHandle,offsets["ClientInteractableGrenadeEntity"],0x88)):
 		Transform = GetEntityTransform(pHandle,Grenade)
 		GrenadeData = GameGrenadeData()
 		GrenadeData.transform = Transform
@@ -725,9 +852,20 @@ def Process(pHandle,cnt):
 		g_gamedata.AddGrenade(GrenadeData)
 		
 	g_gamedata.ClearSupplies()
-	for Supply in GetEntityList(pHandle,offsets["ClientSupplySphereEntity"],0xa8):
-		SupplyName = mem[Supply](0x30).read_string(0xB8)
+	for Supply in GetEntityList(pHandle,offsets["ClientSupplySphereEntity"],0xb0):
+		#print (hex(Supply))
+		SupplyName = mem[Supply](0x38).read_string(0xB8)
 		pos = mem[Supply].read_vec4(0xF0)
+		#if pos == 0:
+		#	continue
+		
+		#print ("0x%x"% (Supply))
+		#print("%f %f %f %f"%(pos[0],pos[1],pos[2],pos[3]))
+		#print("%f %f %f %f"%(MyTransform[1][0],MyTransform[1][1],MyTransform[1][2],MyTransform[1][3]))
+		#print("%f %f %f %f"%(MyTransform[2][0],MyTransform[2][1],MyTransform[2][2],MyTransform[2][3]))
+		#print("%f %f %f %f"%(MyTransform[3][0],MyTransform[3][1],MyTransform[3][2],MyTransform[3][3]))
+		
+		
 		SupplyData = GameSupplyData()
 		SupplyData.transform = [[0,0,0,0],[0,0,0,0],[0,0,0,0],pos]
 		SupplyData.name = SupplyName
@@ -751,20 +889,23 @@ def Process(pHandle,cnt):
 		# lets just walk them 5 entities per render so we don't completely
 		# kill our fps. We don't need low latency for these
 		for n in range(5):
-			g_gamedata.LastLootPtr = GetNextEntity(pHandle,g_gamedata.LastLootPtr,offsets["ClientLootItemEntity"],flink_offset=0x80)
+			g_gamedata.LastLootPtr = GetNextEntity(pHandle,g_gamedata.LastLootPtr,offsets["ClientLootItemEntity"],flink_offset=0x88)
+			
+			#print(hex(g_gamedata.LastLootPtr))
+			
 			if (g_gamedata.LastLootPtr!=0):
 				if g_gamedata.LastLootPtr not in g_gamedata.loots:
-					if (mem[g_gamedata.LastLootPtr].read_int32(0x1C8) != -1):
+					if (mem[g_gamedata.LastLootPtr].read_int32(0x1b8) != -1):
 						Loot = GameLootData()
-						Loot.LootName = mem[g_gamedata.LastLootPtr].read_string(0x690)
-						Loot.LootType = mem[g_gamedata.LastLootPtr](0x30).read_uint32(0x118)
-						Loot.ItemName = mem[g_gamedata.LastLootPtr](0x30)(0x100)(0x0).read_string(0x18)
+						Loot.LootName = mem[g_gamedata.LastLootPtr](0x670).read_string(0x30)
+						Loot.LootType = mem[g_gamedata.LastLootPtr](0x38).read_uint32(0x118)
+						Loot.ItemName = mem[g_gamedata.LastLootPtr](0x38)(0x100)(0x0).read_string(0x18)
 						
 						Loot.transform = GetEntityTransform(pHandle,g_gamedata.LastLootPtr)
 						g_gamedata.loots[g_gamedata.LastLootPtr] = Loot
 				else:
 					g_gamedata.loots[g_gamedata.LastLootPtr].AccessCount += 1
-					if (mem[g_gamedata.LastLootPtr].read_int32(0x1C8) == -1):
+					if (mem[g_gamedata.LastLootPtr].read_int32(0x1b8) == -1):
 						del g_gamedata.loots[g_gamedata.LastLootPtr]
 					elif (g_gamedata.loots[g_gamedata.LastLootPtr].AccessCount >= 50):
 						loots = copy.copy(g_gamedata.loots)
@@ -778,19 +919,22 @@ def Process(pHandle,cnt):
 		# lets just walk them 5 entities per render so we don't completely
 		# kill our fps. We don't need low latency for these		
 		for n in range(5):
-			g_gamedata.LastVestLootPtr = GetNextEntity(pHandle,g_gamedata.LastVestLootPtr,offsets["ClientArmorVestLootItemEntity"],flink_offset=0x80)
+			g_gamedata.LastVestLootPtr = GetNextEntity(pHandle,g_gamedata.LastVestLootPtr,offsets["ClientArmorVestLootItemEntity"],flink_offset=0x88)
+			#print (hex(g_gamedata.LastVestLootPtr))
 			if (g_gamedata.LastVestLootPtr!=0):
 				if g_gamedata.LastVestLootPtr not in g_gamedata.loots:
-					if (mem[g_gamedata.LastVestLootPtr].read_int32(0x1C8) != -1):
+					if (mem[g_gamedata.LastVestLootPtr].read_int32(0x1b8) != -1):
 						Loot = GameLootData()
-						Loot.LootName = mem[g_gamedata.LastVestLootPtr].read_string(0x690)
+						Loot.LootName =  mem[g_gamedata.LastVestLootPtr](0x670).read_string(0x30)
 						Loot.VestEntity = True
-						Loot.ItemName = mem[g_gamedata.LastLootPtr](0x30)(0x100)(0x0).read_string(0x18)
+						Loot.ItemName = mem[g_gamedata.LastVestLootPtr](0x38)(0x100)(0x0).read_string(0x18)
 						Loot.transform = GetEntityTransform(pHandle,g_gamedata.LastVestLootPtr)
+						#DebugPrintMatrix(Loot.transform)
+						#print (hex(g_gamedata.LastVestLootPtr))
 						g_gamedata.loots[g_gamedata.LastVestLootPtr] = Loot
 				else:
 					g_gamedata.loots[g_gamedata.LastVestLootPtr].AccessCount += 1
-					if (mem[g_gamedata.LastVestLootPtr].read_int32(0x1C8) == -1):
+					if (mem[g_gamedata.LastVestLootPtr].read_int32(0x1b8) == -1):
 						del g_gamedata.loots[g_gamedata.LastVestLootPtr]
 
 
@@ -804,7 +948,56 @@ def initialize(pHandle):
 	ALL_ACCESS = 0x1f0fff
 	PAGE_FLR = 0xFFFFFFFFFFFFF000
 	PAGE_RWX = 0x40
-	offsets = build_offsets(pHandle)	
-	patch(pHandle, 0x1415884C6, b"\x30\xD2\x90\xE9");
+	offsets = build_offsets(pHandle)
+	
+	
+	return 
+	mem = MemAccess(pHandle)
+	ss = StackAccess(pHandle,mem[0x144A5AD18].read_uint32(0))
+	pm = PointerManager(pHandle)
+	
+	if (1):
+		while (1):
+			print("[+] pm.GetLocalPlayer() = 0x%016x (Dx11Secret: 0x%016x)"%(pm.GetLocalPlayer(),offsets["Dx11Secret"]))
+			time.sleep(3)
+			#offsets["Dx11Secret"] = 0x6e30c22d3faaa99b
+	
+	
+
+	print ("[+] Searching for Dx11Secret...")
+	addr = -1
+	OM = 0
+	i = 0
+	num = 0
+	while (1):
+		buf = ss.read()
+		addr = buf.find((0x148B98C7E).to_bytes(8, byteorder='little'))
+		if (addr>-1):
+		
+			if (int.from_bytes(buf[addr-120:addr-120+8],"little") == offsets["OBFUS_MGR"]):
+		
+				i=0
+				k = addr+i
+				print ("\n*** %d"%(num))
+				num +=1
+				for i in range(k-160,k+160,8):
+					if (i==k): print("[+] 0x%x ***"%int.from_bytes(buf[i:8+i],"little"))
+					else: print("[+] 0x%x "%int.from_bytes(buf[i:8+i],"little"))
+				time.sleep(2)
+			
+			
+			#testptr = int.from_bytes(buf[addr+i:addr+8+i],"little")
+			#if (testptr>0x100000000000):
+			#	print("[+] Dx11Secret: 0x%x"%testptr)
+			#	ss.close()
+			#	
+			#	k = addr+i-24
+			#	for i in range(k-80,k+80,8):
+			#		if (i==k): print("[+] 0x%x ***"%int.from_bytes(buf[i:8+i],"little"))
+			#		else: print("[+] 0x%x "%int.from_bytes(buf[i:8+i],"little"))
+			#	time.sleep(2)
+		addr = -1
+			
+	exit(1)
 
 

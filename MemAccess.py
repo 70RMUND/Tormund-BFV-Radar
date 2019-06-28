@@ -187,14 +187,14 @@ class WinApi():
 		
 		
 	def rpm_uint64(self,handle, addr):
-		if ((self._cache_en) and (addr in self._cache)):
-			return self._cache[addr]
+		#if ((self._cache_en) and (addr in self._cache)):
+		#	return self._cache[addr]
 		buffer = c_ulonglong(0)
 		addr_ = c_ulonglong(addr)
 		
 		ret = self.ReadProcessMemory(handle,addr_,byref(buffer),sizeof(buffer),None)
-		if (self._cache_en):
-			self._cache[addr] = buffer.value
+		#if (self._cache_en):
+		#	self._cache[addr] = buffer.value
 		self._access+=1
 		
 		if (ret == 0):
@@ -544,3 +544,64 @@ def patch(pHandle,addr,bytes):
 	buff = (c_ubyte * len(bytes)).from_buffer_copy(bytes)
 	api.WriteProcessMemory(pHandle,LPCVOID(addr),buff,c_int(len(bytes)),None)
 	api.VirtualProtectEx(pHandle,LPVOID(addr&PAGE_FLR),c_int(PAGE_SIZE),protection,byref(protection))
+	
+	
+ULONG_PTR = PVOID = LPVOID = PVOID64 = c_void_p
+NTSTATUS = DWORD
+KAFFINITY = ULONG_PTR
+SDWORD = c_int32
+ThreadBasicInformation = 0
+STATUS_SUCCESS = 0
+
+class CLIENT_ID(Structure):
+	_fields_ = [
+		("UniqueProcess",   PVOID),
+		("UniqueThread",	PVOID),
+	]
+
+class THREAD_BASIC_INFORMATION(Structure):
+	_fields_ = [
+		("ExitStatus",	  NTSTATUS),
+		("TebBaseAddress",  PVOID),	 # PTEB
+		("ClientId",		CLIENT_ID),
+		("AffinityMask",	KAFFINITY),
+		("Priority",		SDWORD),
+		("BasePriority",	SDWORD),
+	]
+
+windll.ntdll.NtQueryInformationThread.argtypes = [HANDLE, DWORD, POINTER(THREAD_BASIC_INFORMATION), ULONG, POINTER(ULONG)]
+windll.ntdll.NtQueryInformationThread.restype = NTSTATUS
+
+
+class StackAccess():
+	def __init__(self,handle,threadid):
+		self.buffer = b""
+	
+		self.phandle = handle
+		mem = MemAccess(handle)
+		#print("[+] Inspecting Thread ID: 0x%x"% (threadid))
+		h_thread = windll.kernel32.OpenThread(0x001F03FF, None, threadid)
+		self.h_thread = h_thread
+		tbi = THREAD_BASIC_INFORMATION()
+		len = c_ulonglong()
+		result = windll.ntdll.NtQueryInformationThread(h_thread, ThreadBasicInformation, byref(tbi), sizeof(tbi), None)
+		if result == STATUS_SUCCESS:
+			teb_base = tbi.TebBaseAddress
+			self.stack_start = mem[teb_base].read_uint32(0x8)
+			self.stack_end = mem[teb_base].read_uint32(0x10)
+			self.stack_size = self.stack_start - self.stack_end
+			self.buffer = create_string_buffer(self.stack_size)
+		
+	def read(self):
+		cbuff = (c_char * len(self.buffer)).from_buffer(self.buffer)
+		
+		val = api.ReadProcessMemory(self.phandle,c_ulonglong(self.stack_end),byref(cbuff),sizeof(self.buffer),None)
+		if val == 0:
+			return b""
+
+		return self.buffer.raw
+		
+	def close(self):
+		return windll.kernel32.CloseHandle(self.h_thread)
+		
+		
