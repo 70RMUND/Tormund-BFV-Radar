@@ -71,7 +71,7 @@ class PointerManager():
 		print ("[+] Searching for ObfuscationMgr...")
 		addr = -1
 		OM = 0
-		ss = StackAccess(self.pHandle,self.mem[0x144A5AD18].read_uint32(0))
+		ss = StackAccess(self.pHandle,self.mem[0x144A5BD18].read_uint32(0))
 		while (1):
 			addr = -1
 			time.sleep(0.1)
@@ -82,11 +82,11 @@ class PointerManager():
 			if (addr>-1):
 				for i in range(-160,160,8):
 					testptr = int.from_bytes(buf[addr+i:addr+8+i],"little")
-					if self.mem[testptr-0x120].read_uint64(0x0) == 0x14394E3C8:
+					if self.mem[testptr-0x120].read_uint64(0x0) == 0x14394F698:
 						OM = testptr-0x120
 						self.OBFUS_MGR = OM
 						break
-					elif self.mem[testptr].read_uint64(0x0) == 0x14394E3C8:
+					elif self.mem[testptr].read_uint64(0x0) == 0x14394F698:
 						OM = testptr
 						self.OBFUS_MGR = OM
 						break
@@ -98,7 +98,7 @@ class PointerManager():
 		
 	def GetDx11Secret(self):
 		api._cache_en = False
-		ss = StackAccess(self.pHandle,self.mem[0x144A5AD18].read_uint32(0))
+		ss = StackAccess(self.pHandle,self.mem[0x144A5BD18].read_uint32(0))
 		if (self.mem[self.OBFUS_MGR].read_uint64(0x100) != 0):
 			addr = -1
 			OM = 0
@@ -107,7 +107,7 @@ class PointerManager():
 				addr = -1
 				time.sleep(0.1)
 				buf = ss.read()
-				addr = buf.find((0x148B98C7E).to_bytes(8, byteorder='little'))
+				addr = buf.find((0x1487A487E).to_bytes(8, byteorder='little'))
 				if (addr>-1):
 					i=-120
 					if (int.from_bytes(buf[addr+i:addr+i+8],"little") == offsets["OBFUS_MGR"]):
@@ -137,13 +137,13 @@ class PointerManager():
 			offsets["Dx11EncBuffer"] = Dx11EncBuffer
 			offsets["CryptMode"] = 1
 		elif (offsets["CryptMode"] == 0):
-			if ((DecFunc == 0x1414A9330) and (Dx11EncBuffer != 0)) :
+			if ((DecFunc == 0x1414A7C30) and (Dx11EncBuffer != 0)) :
 				self.GetDx11Secret()
 				print ("[+] Dynamic key loaded, retrieving key...")
 				offsets["Dx11EncBuffer"] = Dx11EncBuffer
 				offsets["CryptMode"] = 1
 		elif (offsets["CryptMode"] == 1):
-			if (DecFunc != 0x1414A9330):
+			if (DecFunc != 0x1414A7C30):
 				offsets["Dx11Secret"] = 0x598447EFD7A36912
 				print ("[+] Static key loaded, root key set to 0x%x"%(offsets["Dx11Secret"]))
 				offsets["CryptMode"] = 0
@@ -315,37 +315,37 @@ def build_offsets(pHandle):
 	print("[+] CLIENTSHRINKINGPLAYAREA         = %x"%(addr))
 	offsets["CLIENTSHRINKINGPLAYAREA"] = mem[addr].read_int32(9)+addr+9+4
 	#addr = find_typeinfo("ClientSoldierEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientSoldierEntity"] = 0x00000001452C15C0#addr
+	offsets["ClientSoldierEntity"] = 0x00000001452C25C0#addr
 	print("[+] ClientSoldierEntity             = %x"%(offsets["ClientSoldierEntity"]))
 	#addr = find_typeinfo("ClientVehicleEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientVehicleEntity"] = 0x00000001451CAE00 #addr
+	offsets["ClientVehicleEntity"] = 0x00000001451CBE00#addr
 	print("[+] ClientVehicleEntity             = %x"%(offsets["ClientVehicleEntity"]))
 	#addr = find_typeinfo("ClientSupplySphereEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientSupplySphereEntity"] = 0x0000000144FEFA70#addr
-	print("[+] ClientSupplySphereEntity        = %x"%(offsets["ClientVehicleEntity"]))
+	offsets["ClientSupplySphereEntity"] = 0x0000000144FF0A70#addr
+	print("[+] ClientSupplySphereEntity        = %x"%(offsets["ClientSupplySphereEntity"]))
 	#addr = find_typeinfo("ClientCombatAreaTriggerEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientCombatAreaTriggerEntity"] = 0x00000001451CBDD0# addr
+	offsets["ClientCombatAreaTriggerEntity"] = 0x00000001451CCDD0# addr
 	print("[+] ClientCombatAreaTriggerEntity   = %x"%(offsets["ClientCombatAreaTriggerEntity"]))
 	#addr = find_typeinfo("ClientExplosionPackEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientExplosionPackEntity"] = 0x00000001452C71B0#addr
+	offsets["ClientExplosionPackEntity"] = 0x00000001452C81B0#addr
 	print("[+] ClientExplosionPackEntity       = %x"%(offsets["ClientExplosionPackEntity"]))
 	#addr = find_typeinfo("ClientProxyGrenadeEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientProxyGrenadeEntity"] = 0x00000001452C6E80#addr
+	offsets["ClientProxyGrenadeEntity"] = 0x00000001452C7E80#addr
 	print("[+] ClientProxyGrenadeEntity        = %x"%(offsets["ClientProxyGrenadeEntity"]))
 	#addr = find_typeinfo("ClientGrenadeEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientGrenadeEntity"] = 0x00000001452C70A0#add
+	offsets["ClientGrenadeEntity"] = 0x00000001452C80A0#add
 	print("[+] ClientGrenadeEntity             = %x"%(offsets["ClientGrenadeEntity"]))
 	#addr = find_typeinfo("ClientInteractableGrenadeEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientInteractableGrenadeEntity"] = 0x00000001450270A0#addr 
+	offsets["ClientInteractableGrenadeEntity"] = 0x00000001450280A0#addr 
 	print("[+] ClientInteractableGrenadeEntity = %x"%(offsets["ClientInteractableGrenadeEntity"]))
 	#addr = find_typeinfo("ClientCapturePointEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientCapturePointEntity"] = 0x000000014500D440#addr
+	offsets["ClientCapturePointEntity"] = 0x000000014500E440#addr
 	print("[+] ClientCapturePointEntity        = %x"%(offsets["ClientCapturePointEntity"]))
 	#addr = find_typeinfo("ClientLootItemEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientLootItemEntity"] = 0x000000014500B7A0#addr
+	offsets["ClientLootItemEntity"] = 0x000000014500C7A0#addr
 	print("[+] ClientLootItemEntity            = %x"%(offsets["ClientLootItemEntity"]))
 	#addr = find_typeinfo("ClientArmorVestLootItemEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientArmorVestLootItemEntity"] = 0x00000001450447D0#addr
+	offsets["ClientArmorVestLootItemEntity"] = 0x00000001450457D0#addr
 	print("[+] ClientArmorVestLootItemEntity   = %x"%(offsets["ClientArmorVestLootItemEntity"]))
 	print ("[+] Done")
 	return offsets
@@ -999,5 +999,3 @@ def initialize(pHandle):
 		addr = -1
 			
 	exit(1)
-
-
