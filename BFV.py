@@ -34,6 +34,27 @@ OD_LongName = 0x80
 OD_TeamState = 0x88
 OD_ControlledState = 0x8C
 
+OFFSET_ObfMgrThreadId = 0x144A4DC28 #90 3B 05 ?? ?? ?? ?? 75 19 8B 05
+OFFSET_ObfMgrVtable = 0x1439423F8
+OFFSET_Dx11SecretReturnAddr = 0x1481A7F9A
+OFFSET_DecryptSinglePlayer = 0x1414A95C0
+OFFSET_DecryptMultiplayer = 0x1414A9500
+
+OFFSET_CapturePointVtable = 0x1438313A8 #49 8B C6 49 83 C6 08 4C 89 75 B0 48 85 C0 74 07 48 89 38 4C 8B 75 B0 48 8B B6 10 01 00 00 48 85 F6 75 16 66 66 0F 1F 84 00 00 00 00 00
+'''
+if ( (unsigned int)((*(_QWORD *)(v88 + 64) - *(_QWORD *)(v88 + 56)) >> 3) < (unsigned int)((v105 - v104) >> 3) )
+{
+  do
+  {
+	v44 = sub_1403F3490(176i64, 16i64, &off_1446E2C30);
+	v87 = (__int64 *)v44;
+	v93 = (__int64 *)v44;
+	if ( v44 )
+	  v45 = sub_1432D4190(v44);<<<<<<<<<<<<<< this function below is the constructor of the vtable:
+	else
+	  v45 = 0i64;
+	sub_1403F3B10(v45, &unk_14512DAC0, 0i64, 0i64);
+'''
 global offsets
 offsets = {}
 		
@@ -71,7 +92,7 @@ class PointerManager():
 		print ("[+] Searching for ObfuscationMgr...")
 		addr = -1
 		OM = 0
-		ss = StackAccess(self.pHandle,self.mem[0x144A5BD18].read_uint32(0))
+		ss = StackAccess(self.pHandle,self.mem[OFFSET_ObfMgrThreadId].read_uint32(0))
 		while (1):
 			addr = -1
 			time.sleep(0.1)
@@ -82,11 +103,11 @@ class PointerManager():
 			if (addr>-1):
 				for i in range(-160,160,8):
 					testptr = int.from_bytes(buf[addr+i:addr+8+i],"little")
-					if self.mem[testptr-0x120].read_uint64(0x0) == 0x14394F698:
+					if self.mem[testptr-0x120].read_uint64(0x0) == OFFSET_ObfMgrVtable:
 						OM = testptr-0x120
 						self.OBFUS_MGR = OM
 						break
-					elif self.mem[testptr].read_uint64(0x0) == 0x14394F698:
+					elif self.mem[testptr].read_uint64(0x0) == OFFSET_ObfMgrVtable:
 						OM = testptr
 						self.OBFUS_MGR = OM
 						break
@@ -98,7 +119,7 @@ class PointerManager():
 		
 	def GetDx11Secret(self):
 		api._cache_en = False
-		ss = StackAccess(self.pHandle,self.mem[0x144A5BD18].read_uint32(0))
+		ss = StackAccess(self.pHandle,self.mem[OFFSET_ObfMgrThreadId].read_uint32(0))
 		if (self.mem[self.OBFUS_MGR].read_uint64(0x100) != 0):
 			addr = -1
 			OM = 0
@@ -107,11 +128,11 @@ class PointerManager():
 				addr = -1
 				time.sleep(0.1)
 				buf = ss.read()
-				addr = buf.find((0x1487A487E).to_bytes(8, byteorder='little'))
+				addr = buf.find((OFFSET_Dx11SecretReturnAddr).to_bytes(8, byteorder='little'))
 				if (addr>-1):
-					i=-120
+					i = 200
 					if (int.from_bytes(buf[addr+i:addr+i+8],"little") == offsets["OBFUS_MGR"]):
-						i=-56
+						i=8
 						testptr = int.from_bytes(buf[addr+i:addr+8+i],"little")
 						if (testptr>0x100000000000000):
 							if (testptr == offsets["Dx11Secret"]):
@@ -137,13 +158,13 @@ class PointerManager():
 			offsets["Dx11EncBuffer"] = Dx11EncBuffer
 			offsets["CryptMode"] = 1
 		elif (offsets["CryptMode"] == 0):
-			if ((DecFunc == 0x1414A7C30) and (Dx11EncBuffer != 0)) :
+			if ((DecFunc == OFFSET_DecryptMultiplayer) and (Dx11EncBuffer != 0)) :
 				self.GetDx11Secret()
 				print ("[+] Dynamic key loaded, retrieving key...")
 				offsets["Dx11EncBuffer"] = Dx11EncBuffer
 				offsets["CryptMode"] = 1
 		elif (offsets["CryptMode"] == 1):
-			if (DecFunc != 0x1414A7C30):
+			if (DecFunc != OFFSET_DecryptMultiplayer):
 				offsets["Dx11Secret"] = 0x598447EFD7A36912
 				print ("[+] Static key loaded, root key set to 0x%x"%(offsets["Dx11Secret"]))
 				offsets["CryptMode"] = 0
@@ -315,37 +336,37 @@ def build_offsets(pHandle):
 	print("[+] CLIENTSHRINKINGPLAYAREA         = %x"%(addr))
 	offsets["CLIENTSHRINKINGPLAYAREA"] = mem[addr].read_int32(9)+addr+9+4
 	#addr = find_typeinfo("ClientSoldierEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientSoldierEntity"] = 0x00000001452C25C0#addr
+	offsets["ClientSoldierEntity"] = 0x00000001452B45C0#addr
 	print("[+] ClientSoldierEntity             = %x"%(offsets["ClientSoldierEntity"]))
 	#addr = find_typeinfo("ClientVehicleEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientVehicleEntity"] = 0x00000001451CBE00#addr
+	offsets["ClientVehicleEntity"] = 0x00000001451BDE00#addr
 	print("[+] ClientVehicleEntity             = %x"%(offsets["ClientVehicleEntity"]))
 	#addr = find_typeinfo("ClientSupplySphereEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientSupplySphereEntity"] = 0x0000000144FF0A70#addr
+	offsets["ClientSupplySphereEntity"] = 0x0000000144FE2A70#addr
 	print("[+] ClientSupplySphereEntity        = %x"%(offsets["ClientSupplySphereEntity"]))
 	#addr = find_typeinfo("ClientCombatAreaTriggerEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientCombatAreaTriggerEntity"] = 0x00000001451CCDD0# addr
+	offsets["ClientCombatAreaTriggerEntity"] = 0x00000001451BEDD0# addr
 	print("[+] ClientCombatAreaTriggerEntity   = %x"%(offsets["ClientCombatAreaTriggerEntity"]))
 	#addr = find_typeinfo("ClientExplosionPackEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientExplosionPackEntity"] = 0x00000001452C81B0#addr
+	offsets["ClientExplosionPackEntity"] = 0x00000001452BA1B0#addr
 	print("[+] ClientExplosionPackEntity       = %x"%(offsets["ClientExplosionPackEntity"]))
 	#addr = find_typeinfo("ClientProxyGrenadeEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientProxyGrenadeEntity"] = 0x00000001452C7E80#addr
+	offsets["ClientProxyGrenadeEntity"] = 0x00000001452B9E80#addr
 	print("[+] ClientProxyGrenadeEntity        = %x"%(offsets["ClientProxyGrenadeEntity"]))
 	#addr = find_typeinfo("ClientGrenadeEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientGrenadeEntity"] = 0x00000001452C80A0#add
+	offsets["ClientGrenadeEntity"] = 0x00000001452BA0A0#add
 	print("[+] ClientGrenadeEntity             = %x"%(offsets["ClientGrenadeEntity"]))
 	#addr = find_typeinfo("ClientInteractableGrenadeEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientInteractableGrenadeEntity"] = 0x00000001450280A0#addr 
+	offsets["ClientInteractableGrenadeEntity"] = 0x000000014501A0A0#addr 
 	print("[+] ClientInteractableGrenadeEntity = %x"%(offsets["ClientInteractableGrenadeEntity"]))
 	#addr = find_typeinfo("ClientCapturePointEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientCapturePointEntity"] = 0x000000014500E440#addr
+	offsets["ClientCapturePointEntity"] = 0x0000000145000440#addr
 	print("[+] ClientCapturePointEntity        = %x"%(offsets["ClientCapturePointEntity"]))
 	#addr = find_typeinfo("ClientLootItemEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientLootItemEntity"] = 0x000000014500C7A0#addr
+	offsets["ClientLootItemEntity"] = 0x0000000144FFE7A0#addr
 	print("[+] ClientLootItemEntity            = %x"%(offsets["ClientLootItemEntity"]))
 	#addr = find_typeinfo("ClientArmorVestLootItemEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientArmorVestLootItemEntity"] = 0x00000001450457D0#addr
+	offsets["ClientArmorVestLootItemEntity"] = 0x00000001450377D0#addr
 	print("[+] ClientArmorVestLootItemEntity   = %x"%(offsets["ClientArmorVestLootItemEntity"]))
 	print ("[+] Done")
 	return offsets
@@ -763,7 +784,7 @@ def Process(pHandle,cnt):
 		UIObj = mem[offsets["OBJECTIVE_MANAGER"]](0)(0x38).read_uint64(i*8)
 
 		i+=1
-		if mem[UIObj].read_uint64(0) != 0x14383D318:
+		if mem[UIObj].read_uint64(0) != OFFSET_CapturePointVtable:
 			break
 		
 		Transform = mem[UIObj].read_mat4(OD_Transform)
@@ -836,7 +857,7 @@ def Process(pHandle,cnt):
 	g_gamedata.ClearExplosives()
 	for Explosive in GetEntityList(pHandle,offsets["ClientExplosionPackEntity"],0x88):
 		Transform = GetEntityTransform(pHandle,Explosive)
-		Team = mem[Explosive].read_uint32(0x4d0)
+		Team = mem[Explosive].read_uint32(0x4c0)
 		ExplosiveData = GameExplosiveData()
 		ExplosiveData.transform = Transform
 		ExplosiveData.teamid = Team
@@ -953,7 +974,7 @@ def initialize(pHandle):
 	
 	return 
 	mem = MemAccess(pHandle)
-	ss = StackAccess(pHandle,mem[0x144A5AD18].read_uint32(0))
+	ss = StackAccess(pHandle,mem[OFFSET_ObfMgrThreadId].read_uint32(0))
 	pm = PointerManager(pHandle)
 	
 	if (1):
@@ -971,7 +992,7 @@ def initialize(pHandle):
 	num = 0
 	while (1):
 		buf = ss.read()
-		addr = buf.find((0x148B98C7E).to_bytes(8, byteorder='little'))
+		addr = buf.find((OFFSET_Dx11SecretReturnAddr).to_bytes(8, byteorder='little'))
 		if (addr>-1):
 		
 			if (int.from_bytes(buf[addr-120:addr-120+8],"little") == offsets["OBFUS_MGR"]):
