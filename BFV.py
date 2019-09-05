@@ -11,16 +11,16 @@ NDM_PLAYERLIST = 0x10 #
 NDM_TYPEINFOLIST = 0x18 #
 NDM_ENTITYKEYLIST = 0x20 #
 ClientPlayer_TeamID = 0x1C48 #
-ClientPlayer_Soldier = 0x1d48 #
-ClientPlayer_Vehicle = 0x1d58 #
+ClientPlayer_Soldier = 0x1d50 #
+ClientPlayer_Vehicle = 0x1d60 #
 GameRenderer_RenderView = 0x60 #
 RenderView_ViewMatrix = 0x2F0 #
 HC_Health = 0x20
 HC_MaxHealth = 0x24
-CVE_TeamID = 0x1c4
-CSE_HealthComponent = 0x278 #
+CVE_TeamID = 0x1cc
+CSE_HealthComponent = 0x280 #
 CCPE_Transform = 0x3c0
-CSE_Player = 0x338
+CSE_Player = 0x340
 CVE_VehicleEntityData = 0x38
 VED_ControllableType = 0x1F8
 CCAT_ActiveTrigger = 0xD84
@@ -34,27 +34,6 @@ OD_LongName = 0x80
 OD_TeamState = 0x88
 OD_ControlledState = 0x8C
 
-OFFSET_ObfMgrThreadId = 0x144A4DC28 #90 3B 05 ?? ?? ?? ?? 75 19 8B 05
-OFFSET_ObfMgrVtable = 0x1439423F8
-OFFSET_Dx11SecretReturnAddr = 0x1481A7F9A
-OFFSET_DecryptSinglePlayer = 0x1414A95C0
-OFFSET_DecryptMultiplayer = 0x1414A9500
-
-OFFSET_CapturePointVtable = 0x1438313A8 #49 8B C6 49 83 C6 08 4C 89 75 B0 48 85 C0 74 07 48 89 38 4C 8B 75 B0 48 8B B6 10 01 00 00 48 85 F6 75 16 66 66 0F 1F 84 00 00 00 00 00
-'''
-if ( (unsigned int)((*(_QWORD *)(v88 + 64) - *(_QWORD *)(v88 + 56)) >> 3) < (unsigned int)((v105 - v104) >> 3) )
-{
-  do
-  {
-	v44 = sub_1403F3490(176i64, 16i64, &off_1446E2C30);
-	v87 = (__int64 *)v44;
-	v93 = (__int64 *)v44;
-	if ( v44 )
-	  v45 = sub_1432D4190(v44);<<<<<<<<<<<<<< this function below is the constructor of the vtable:
-	else
-	  v45 = 0i64;
-	sub_1403F3B10(v45, &unk_14512DAC0, 0i64, 0i64);
-'''
 global offsets
 offsets = {}
 		
@@ -92,7 +71,7 @@ class PointerManager():
 		print ("[+] Searching for ObfuscationMgr...")
 		addr = -1
 		OM = 0
-		ss = StackAccess(self.pHandle,self.mem[OFFSET_ObfMgrThreadId].read_uint32(0))
+		ss = StackAccess(self.pHandle,self.mem[offsets["PROTECTED_THREAD"]].read_uint32(0))
 		while (1):
 			addr = -1
 			time.sleep(0.1)
@@ -103,11 +82,11 @@ class PointerManager():
 			if (addr>-1):
 				for i in range(-160,160,8):
 					testptr = int.from_bytes(buf[addr+i:addr+8+i],"little")
-					if self.mem[testptr-0x120].read_uint64(0x0) == OFFSET_ObfMgrVtable:
+					if self.mem[testptr-0x120].read_uint64(0x0) == offsets["OBFUS_MGR_PTR_1"]:
 						OM = testptr-0x120
 						self.OBFUS_MGR = OM
 						break
-					elif self.mem[testptr].read_uint64(0x0) == OFFSET_ObfMgrVtable:
+					elif self.mem[testptr].read_uint64(0x0) == offsets["OBFUS_MGR_PTR_1"]:
 						OM = testptr
 						self.OBFUS_MGR = OM
 						break
@@ -119,7 +98,7 @@ class PointerManager():
 		
 	def GetDx11Secret(self):
 		api._cache_en = False
-		ss = StackAccess(self.pHandle,self.mem[OFFSET_ObfMgrThreadId].read_uint32(0))
+		ss = StackAccess(self.pHandle,self.mem[offsets["PROTECTED_THREAD"]].read_uint32(0))
 		if (self.mem[self.OBFUS_MGR].read_uint64(0x100) != 0):
 			addr = -1
 			OM = 0
@@ -128,11 +107,11 @@ class PointerManager():
 				addr = -1
 				time.sleep(0.1)
 				buf = ss.read()
-				addr = buf.find((OFFSET_Dx11SecretReturnAddr).to_bytes(8, byteorder='little'))
+				addr = buf.find((offsets["OBFUS_MGR_RET_1"]).to_bytes(8, byteorder='little'))
 				if (addr>-1):
-					i = 200
+					i=-120
 					if (int.from_bytes(buf[addr+i:addr+i+8],"little") == offsets["OBFUS_MGR"]):
-						i=8
+						i=-56
 						testptr = int.from_bytes(buf[addr+i:addr+8+i],"little")
 						if (testptr>0x100000000000000):
 							if (testptr == offsets["Dx11Secret"]):
@@ -158,13 +137,13 @@ class PointerManager():
 			offsets["Dx11EncBuffer"] = Dx11EncBuffer
 			offsets["CryptMode"] = 1
 		elif (offsets["CryptMode"] == 0):
-			if ((DecFunc == OFFSET_DecryptMultiplayer) and (Dx11EncBuffer != 0)) :
+			if ((DecFunc == offsets["OBFUS_MGR_DEC_FUNC"]) and (Dx11EncBuffer != 0)):
 				self.GetDx11Secret()
 				print ("[+] Dynamic key loaded, retrieving key...")
 				offsets["Dx11EncBuffer"] = Dx11EncBuffer
 				offsets["CryptMode"] = 1
 		elif (offsets["CryptMode"] == 1):
-			if (DecFunc != OFFSET_DecryptMultiplayer):
+			if (DecFunc != offsets["OBFUS_MGR_DEC_FUNC"]):
 				offsets["Dx11Secret"] = 0x598447EFD7A36912
 				print ("[+] Static key loaded, root key set to 0x%x"%(offsets["Dx11Secret"]))
 				offsets["CryptMode"] = 0
@@ -198,9 +177,9 @@ class PointerManager():
 	def GetLocalPlayer(self):
 		self.CheckCryptMode()
 		mem = self.mem
-		ClientPlayerManager = mem[offsets["CLIENT_GAME_CONTEXT"]](0).read_uint64(0x68)
+		ClientPlayerManager = mem[offsets["CLIENT_GAME_CONTEXT"]](0).read_uint64(0x60)
 		ObfManager = self.OBFUS_MGR
-		LocalPlayerListXorValue = mem[ClientPlayerManager].read_uint64(0xF0)
+		LocalPlayerListXorValue = mem[ClientPlayerManager].read_uint64(0xF8)
 		LocalPlayerListKey = LocalPlayerListXorValue ^ mem[ObfManager].read_uint64(0xE0)
 		
 		hashtable = ObfManager+0x10
@@ -222,9 +201,9 @@ class PointerManager():
 	def GetPlayerById(self,id):
 		self.CheckCryptMode()
 		mem = self.mem
-		ClientPlayerManager = mem[offsets["CLIENT_GAME_CONTEXT"]](0).read_uint64(0x68)
+		ClientPlayerManager = mem[offsets["CLIENT_GAME_CONTEXT"]](0).read_uint64(0x60)
 		ObfManager = self.OBFUS_MGR
-		PlayerListXorValue = mem[ClientPlayerManager].read_uint64(0xF8)
+		PlayerListXorValue = mem[ClientPlayerManager].read_uint64(0x100)
 		PlayerListKey = PlayerListXorValue ^ mem[ObfManager].read_uint64(0xE0)
 		
 		hashtable = ObfManager+0x10
@@ -246,9 +225,9 @@ class PointerManager():
 	def GetSpectatorById(self,id):
 		self.CheckCryptMode()
 		mem = self.mem
-		ClientPlayerManager = mem[offsets["CLIENT_GAME_CONTEXT"]](0).read_uint64(0x68)
+		ClientPlayerManager = mem[offsets["CLIENT_GAME_CONTEXT"]](0).read_uint64(0x60)
 		ObfManager = self.OBFUS_MGR
-		PlayerListXorValue = mem[ClientPlayerManager].read_uint64(0xF0-8)
+		PlayerListXorValue = mem[ClientPlayerManager].read_uint64(0xF0)
 		PlayerListKey = PlayerListXorValue ^ mem[ObfManager].read_uint64(0xE0)
 		
 		hashtable = ObfManager+0x10
@@ -321,54 +300,25 @@ def build_offsets(pHandle):
 	offsets["Dx11Secret"] = 0x598447EFD7A36912
 	offsets["Dx11EncBuffer"] = 0
 	offsets["TIMESTAMP"] = get_buildtime(pHandle)
-	addr = x.scan("48 8B 0D ? ? ? ? 48 8B 01 B2 01 FF 50")
-	offsets["GAMERENDERER"] = mem[addr].read_int32(3)+addr+3+4
-	addr = x.scan("48 8B 05 ? ? ? ? 48 85 C0 74 26 4C 8B 40 40")
-	print("[+] CLIENT_GAME_CONTEXT             = %x"%(addr))
-	offsets["CLIENT_GAME_CONTEXT"] = mem[addr].read_int32(3)+addr+3+4
-	addr = x.scan("48 8B 05 ?? ?? ?? ?? 31 D2 48 85 C0 74")
-	print("[+] FIRST_TYPEINFO                  = %x"%(0x14495A568))
-	offsets["FIRST_TYPEINFO"] = 0x144731BF8 #%mem[addr].read_int32(3)+addr+3+4
-	addr = x.scan("FF 0D ?? ?? ?? ?? 48 89 CA 48 8B 1D ?? ?? ?? ??")
-	print("[+] OBJECTIVE_MANAGER               = %x"%(addr))
-	offsets["OBJECTIVE_MANAGER"] = mem[addr].read_int32(12)+addr+12+4
-	addr = x.scan("4C 8B F2 48 8B D9 48 8B 35 ? ? ? ? 48 85 F6")
-	print("[+] CLIENTSHRINKINGPLAYAREA         = %x"%(addr))
-	offsets["CLIENTSHRINKINGPLAYAREA"] = mem[addr].read_int32(9)+addr+9+4
-	#addr = find_typeinfo("ClientSoldierEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientSoldierEntity"] = 0x00000001452B45C0#addr
-	print("[+] ClientSoldierEntity             = %x"%(offsets["ClientSoldierEntity"]))
-	#addr = find_typeinfo("ClientVehicleEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientVehicleEntity"] = 0x00000001451BDE00#addr
-	print("[+] ClientVehicleEntity             = %x"%(offsets["ClientVehicleEntity"]))
-	#addr = find_typeinfo("ClientSupplySphereEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientSupplySphereEntity"] = 0x0000000144FE2A70#addr
-	print("[+] ClientSupplySphereEntity        = %x"%(offsets["ClientSupplySphereEntity"]))
-	#addr = find_typeinfo("ClientCombatAreaTriggerEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientCombatAreaTriggerEntity"] = 0x00000001451BEDD0# addr
-	print("[+] ClientCombatAreaTriggerEntity   = %x"%(offsets["ClientCombatAreaTriggerEntity"]))
-	#addr = find_typeinfo("ClientExplosionPackEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientExplosionPackEntity"] = 0x00000001452BA1B0#addr
-	print("[+] ClientExplosionPackEntity       = %x"%(offsets["ClientExplosionPackEntity"]))
-	#addr = find_typeinfo("ClientProxyGrenadeEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientProxyGrenadeEntity"] = 0x00000001452B9E80#addr
-	print("[+] ClientProxyGrenadeEntity        = %x"%(offsets["ClientProxyGrenadeEntity"]))
-	#addr = find_typeinfo("ClientGrenadeEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientGrenadeEntity"] = 0x00000001452BA0A0#add
-	print("[+] ClientGrenadeEntity             = %x"%(offsets["ClientGrenadeEntity"]))
-	#addr = find_typeinfo("ClientInteractableGrenadeEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientInteractableGrenadeEntity"] = 0x000000014501A0A0#addr 
-	print("[+] ClientInteractableGrenadeEntity = %x"%(offsets["ClientInteractableGrenadeEntity"]))
-	#addr = find_typeinfo("ClientCapturePointEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientCapturePointEntity"] = 0x0000000145000440#addr
-	print("[+] ClientCapturePointEntity        = %x"%(offsets["ClientCapturePointEntity"]))
-	#addr = find_typeinfo("ClientLootItemEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientLootItemEntity"] = 0x0000000144FFE7A0#addr
-	print("[+] ClientLootItemEntity            = %x"%(offsets["ClientLootItemEntity"]))
-	#addr = find_typeinfo("ClientArmorVestLootItemEntity",offsets["FIRST_TYPEINFO"],pHandle)
-	offsets["ClientArmorVestLootItemEntity"] = 0x00000001450377D0#addr
-	print("[+] ClientArmorVestLootItemEntity   = %x"%(offsets["ClientArmorVestLootItemEntity"]))
-	print ("[+] Done")
+	offsets["GAMERENDERER"]                    = 0x1447CEB28
+	offsets["CLIENT_GAME_CONTEXT"]             = 0x144722378
+	offsets["OBJECTIVE_MANAGER"]               = 0x144665FF8  # FF 0D ? ? ? ? 48 8B 1D [? ? ? ?] 48 8B 43 10 48 8B 4B 08 48 3B C8 74 0E
+	offsets["CLIENTSHRINKINGPLAYAREA"]         = 0x14468C8D0  # 48 8B F2 48 8B D9 4C 8B 35 [? ? ? ?] 4D 85 F6
+	offsets["ClientSoldierEntity"]             = 0x144F0F3B0
+	offsets["ClientVehicleEntity"]             = 0x144E16720
+	offsets["ClientSupplySphereEntity"]        = 0x144C69E30
+	offsets["ClientCombatAreaTriggerEntity"]   = 0x144E17980
+	offsets["ClientExplosionPackEntity"]       = 0x144F14DE0
+	offsets["ClientProxyGrenadeEntity"]        = 0x144F14AB0
+	offsets["ClientGrenadeEntity"]             = 0x144F14CD0
+	offsets["ClientInteractableGrenadeEntity"] = 0x144C359B0
+	offsets["ClientCapturePointEntity"]        = 0x144C24B90
+	offsets["ClientLootItemEntity"]            = 0x144CBF750
+	offsets["ClientArmorVestLootItemEntity"]   = 0x144C6C310
+	offsets["PROTECTED_THREAD"]                = 0x144729F10
+	offsets["OBFUS_MGR_PTR_1"]                 = 0x14388A680
+	offsets["OBFUS_MGR_RET_1"]                 = 0x1416756C8
+	offsets["OBFUS_MGR_DEC_FUNC"]              = 0x1416317D0
 	return offsets
 
 def GetLocalPlayerList(pHandle):
@@ -705,11 +655,10 @@ def Process(pHandle,cnt):
 	g_gamedata.mytransform = MyTransform
 	
 	
-
-	#print (hex(MySoldier))
-	
-	
-	#print (hex(MySoldier))
+	#print ("MyPlayer : 0x%016X" % MyPlayer)
+	#print ("MySoldier: 0x%016X" % MySoldier)
+	#print ("MyTeamId : 0x%016X" % MyTeamId)
+	#print ("MyPos    : %s\n" % str(MyPos))
 	
 	if MySoldier == 0:
 		g_gamedata.myviewmatrix = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]]
@@ -724,7 +673,7 @@ def Process(pHandle,cnt):
 		# if you are me, skip
 		if (Soldier == MySoldier):
 			continue
-		
+		#print ("0x%016x"%Soldier)
 		# if you are not attached to a ClientPlayer, skip
 		if (mem[Soldier](CSE_Player).me() == 0):
 			continue
@@ -776,15 +725,15 @@ def Process(pHandle,cnt):
 		VehicleData.vehicletype = mem[Vehicle](CVE_VehicleEntityData).read_string(VED_ControllableType)
 		VehicleData.teamid = (mem[Vehicle].read_uint32(CVE_TeamID))
 		g_gamedata.AddVehicle(VehicleData)
+		#print ("0x%016x"%Vehicle)
 	
 	# Get all objectives by accessing ObjectiveManager and iterating all ObjectiveData
 	g_gamedata.ClearUIObjectives()
 	i=0
 	while (1):
 		UIObj = mem[offsets["OBJECTIVE_MANAGER"]](0)(0x38).read_uint64(i*8)
-
 		i+=1
-		if mem[UIObj].read_uint64(0) != OFFSET_CapturePointVtable:
+		if mem[UIObj].read_uint64(0) != 0x1437A2030:
 			break
 		
 		Transform = mem[UIObj].read_mat4(OD_Transform)
@@ -873,14 +822,14 @@ def Process(pHandle,cnt):
 		g_gamedata.AddGrenade(GrenadeData)
 		
 	g_gamedata.ClearSupplies()
-	for Supply in GetEntityList(pHandle,offsets["ClientSupplySphereEntity"],0xb0):
+	for Supply in GetEntityList(pHandle,offsets["ClientSupplySphereEntity"],0xb8):
 		#print (hex(Supply))
 		SupplyName = mem[Supply](0x38).read_string(0xB8)
-		pos = mem[Supply].read_vec4(0xF0)
+		pos = mem[Supply].read_vec4(0x100)
 		#if pos == 0:
 		#	continue
 		
-		#print ("0x%x"% (Supply))
+		#print ("0x%x (%s)"% (Supply,SupplyName))
 		#print("%f %f %f %f"%(pos[0],pos[1],pos[2],pos[3]))
 		#print("%f %f %f %f"%(MyTransform[1][0],MyTransform[1][1],MyTransform[1][2],MyTransform[1][3]))
 		#print("%f %f %f %f"%(MyTransform[2][0],MyTransform[2][1],MyTransform[2][2],MyTransform[2][3]))
@@ -974,7 +923,7 @@ def initialize(pHandle):
 	
 	return 
 	mem = MemAccess(pHandle)
-	ss = StackAccess(pHandle,mem[OFFSET_ObfMgrThreadId].read_uint32(0))
+	ss = StackAccess(pHandle,mem[0x144A5AD18].read_uint32(0))
 	pm = PointerManager(pHandle)
 	
 	if (1):
@@ -992,7 +941,7 @@ def initialize(pHandle):
 	num = 0
 	while (1):
 		buf = ss.read()
-		addr = buf.find((OFFSET_Dx11SecretReturnAddr).to_bytes(8, byteorder='little'))
+		addr = buf.find((0x148B98C7E).to_bytes(8, byteorder='little'))
 		if (addr>-1):
 		
 			if (int.from_bytes(buf[addr-120:addr-120+8],"little") == offsets["OBFUS_MGR"]):
