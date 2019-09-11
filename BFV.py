@@ -655,8 +655,8 @@ def Process(pHandle,cnt):
 	g_gamedata.mytransform = MyTransform
 	
 	
-	print ("MyPlayer : 0x%016X" % MyPlayer)
-	print ("MySoldier: 0x%016X" % MySoldier)
+	#print ("MyPlayer : 0x%016X" % MyPlayer)
+	#print ("MySoldier: 0x%016X" % MySoldier)
 	#print ("MyTeamId : 0x%016X" % MyTeamId)
 	#print ("MyPos    : %s\n" % str(MyPos))
 	
