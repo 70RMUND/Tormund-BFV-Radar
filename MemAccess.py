@@ -91,51 +91,16 @@ class WinApi():
 		token = HANDLE()
 		TOKEN_QUERY = 0x0008
 		res = self.OpenProcessToken(phandle, TOKEN_QUERY, token)
-		print ("[+] GetLastError: 0x%x" %(self.GetLastError()))
 		if not res > 0:
 			raise RuntimeError("Couldn't get process token")
-		TokenElevation = 20
-		elev = TOKEN_ELEVATION()
-		elev.TokenIsElevated = 0xFFFFFFFF
+		TokenElevationType = 18
+		elev = DWORD(0)
 		retlen = DWORD()
-		res = self.GetTokenInformation( token, TokenElevation , pointer(elev), sizeof(elev), pointer(retlen) )
-		print ("[+] GetLastError: 0x%x" %(self.GetLastError()))
-		print ("retlen: %i"%(retlen.value))
+		res = self.GetTokenInformation( token, TokenElevationType , pointer(elev), sizeof(elev), pointer(retlen) )
 		if not res > 0:
 			raise RuntimeError("Couldn't get process token information")
 		api.CloseHandle(token)
-		return elev.TokenIsElevated
-			
-			
-	
-	def get_privilege_information(self, phandle):
-		"""
-		Get all privileges associated with the current process.
-		"""
-		# first call with zero length to determine what size buffer we need
-
-		return_length = DWORD()
-		params = [
-			get_process_token(phandle),
-			TOKEN_INFORMATION_CLASS.TokenPrivileges,
-			None,
-			0,
-			return_length,
-		]
-
-		res = GetTokenInformation(*params)
-
-		# assume we now have the necessary length in return_length
-
-		buffer = create_string_buffer(return_length.value)
-		params[2] = buffer
-		params[3] = return_length.value
-
-		res = GetTokenInformation(*params)
-		assert res > 0, "Error in second GetTokenInformation (%d)" % res
-
-		privileges = cast(buffer, POINTER(TOKEN_PRIVILEGES)).contents
-		return privileges
+		return elev.value
 		
 	def get_processid_by_name(self,name):
 		class PROCESSENTRY32(Structure):

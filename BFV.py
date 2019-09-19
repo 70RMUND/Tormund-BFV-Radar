@@ -401,10 +401,22 @@ def GetNextEntity(pHandle,Ptr,typeinfo,flink_offset=0x88):
 
 		
 def GetHandle():
+	def yes_or_no(question):
+		while "the answer is invalid":
+			reply = str(input(question+' (y/n): ')).lower().strip()
+			if reply[:1] == 'y':
+				return True
+			if reply[:1] == 'n':
+				return False
 	pid = api.get_processid_by_name("bfv.exe")	
 	if type(pid) == type(None):
 		return 0
 	pHandle = HANDLE(api.OpenProcess(DWORD(0x1f0fff),False,DWORD(pid)))
+	priv = api.is_elevated(pHandle)
+	if (priv == 2):
+		ans = yes_or_no("[+] WARNING! BFV.exe is running as admin, do you still want to continue?")
+		if (ans == False):
+			exit(0)
 	return pHandle.value
 	
 def GetEntityTransform(pHandle,Entity):
