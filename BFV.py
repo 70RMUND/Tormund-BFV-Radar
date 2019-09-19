@@ -401,7 +401,7 @@ def GetNextEntity(pHandle,Ptr,typeinfo,flink_offset=0x88):
 
 		
 def GetHandle():
-	pid = api.get_processid_by_name("bfv.exe")
+	pid = api.get_processid_by_name("bfv.exe")	
 	if type(pid) == type(None):
 		return 0
 	pHandle = HANDLE(api.OpenProcess(DWORD(0x1f0fff),False,DWORD(pid)))

@@ -49,8 +49,26 @@ MEM_COMMIT = 4096
 MEM_FREE = 65536
 MEM_RESERVE = 8192
 
+class _TOKEN_ELEVATION(Structure):
+	_fields_ = [
+		("TokenIsElevated", DWORD),
+	]
+TOKEN_ELEVATION = _TOKEN_ELEVATION
+
 class WinApi():
 	def __init__(self):
+		self.GetTokenInformation = windll.advapi32.GetTokenInformation
+		self.GetTokenInformation.argtypes = [
+			HANDLE, # TokenHandle
+			c_uint, # TOKEN_INFORMATION_CLASS value
+			c_void_p, # TokenInformation
+			DWORD, # TokenInformationLength
+			POINTER(DWORD), # ReturnLength
+			]
+		self.GetTokenInformation.restype = BOOL
+		self.OpenProcessToken = windll.advapi32.OpenProcessToken
+		self.OpenProcessToken.argtypes = (HANDLE, DWORD, POINTER(HANDLE))
+		self.OpenProcessToken.restype = BOOL
 		self.CreateToolhelp32Snapshot = CDLL("kernel32.dll").CreateToolhelp32Snapshot
 		self.Process32First = CDLL("kernel32.dll").Process32First
 		self.Process32Next = CDLL("kernel32.dll").Process32Next
@@ -68,6 +86,56 @@ class WinApi():
 		si = self.GetNativeSystemInfo()
 		self.max_addr = si.lpMaximumApplicationAddress
 		self.min_addr = si.lpMinimumApplicationAddress
+				
+	def is_elevated(self,phandle):
+		token = HANDLE()
+		TOKEN_QUERY = 0x0008
+		res = self.OpenProcessToken(phandle, TOKEN_QUERY, token)
+		print ("[+] GetLastError: 0x%x" %(self.GetLastError()))
+		if not res > 0:
+			raise RuntimeError("Couldn't get process token")
+		TokenElevation = 20
+		elev = TOKEN_ELEVATION()
+		elev.TokenIsElevated = 0xFFFFFFFF
+		retlen = DWORD()
+		res = self.GetTokenInformation( token, TokenElevation , pointer(elev), sizeof(elev), pointer(retlen) )
+		print ("[+] GetLastError: 0x%x" %(self.GetLastError()))
+		print ("retlen: %i"%(retlen.value))
+		if not res > 0:
+			raise RuntimeError("Couldn't get process token information")
+		api.CloseHandle(token)
+		return elev.TokenIsElevated
+			
+			
+	
+	def get_privilege_information(self, phandle):
+		"""
+		Get all privileges associated with the current process.
+		"""
+		# first call with zero length to determine what size buffer we need
+
+		return_length = DWORD()
+		params = [
+			get_process_token(phandle),
+			TOKEN_INFORMATION_CLASS.TokenPrivileges,
+			None,
+			0,
+			return_length,
+		]
+
+		res = GetTokenInformation(*params)
+
+		# assume we now have the necessary length in return_length
+
+		buffer = create_string_buffer(return_length.value)
+		params[2] = buffer
+		params[3] = return_length.value
+
+		res = GetTokenInformation(*params)
+		assert res > 0, "Error in second GetTokenInformation (%d)" % res
+
+		privileges = cast(buffer, POINTER(TOKEN_PRIVILEGES)).contents
+		return privileges
 		
 	def get_processid_by_name(self,name):
 		class PROCESSENTRY32(Structure):

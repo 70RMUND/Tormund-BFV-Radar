@@ -3,11 +3,30 @@ import pygame
 import BFV
 import random
 import math
-import sys
+import sys, os
 import time
 import MemAccess
+import struct
 from ctypes import *
 from ctypes.wintypes import *
+
+
+
+def is_admin():
+	try:
+		is_admin = os.getuid() == 0
+	except AttributeError:
+		is_admin = windll.shell32.IsUserAnAdmin() != 0
+	return is_admin
+
+def is_python3():
+	if sys.version_info[0] < 3:
+		return False
+	return True
+	
+def get_pythonArch():
+	bitness = (8 * struct.calcsize("P"))
+	return bitness
   
 GetAsyncKeyState = cdll.user32.GetAsyncKeyState
   
@@ -477,13 +496,32 @@ if __name__ == "__main__":
 	print ("[+] Tormund's External Radar v1.0 for Battlefield V")
 	
 	
+	if (is_admin() == False):
+		print ("[+] Error: python (or commandline) must be ran with admin privledges")
+		input("Press Enter to continue...")
+		exit(1)
+	
+	if (is_python3() == False):
+		print ("[+] Error: detected Python 2, this script requires Python 3")
+		raw_input("Press Enter to continue...")
+		exit(1)
+		
+	arch = get_pythonArch()
+	if (arch != 64):
+		print ("[+] Error: detected Python 3.* %i-bit, this script requires Python 3 64-bit"% (arch))
+		print ("[+] Error: you may need to reinstall python to a 3.* 64-bit version")
+		input("Press Enter to continue...")
+		exit(1)
 	
 	if len(sys.argv) == 1:
 		w = 800
 		h = 600
+
 	elif len(sys.argv) != 3:
 		print ("[+] Usage: python ./radar.py [radar width] [radar height]")
+		input("Press Enter to continue...")
 		exit(1)
+
 	else:
 		try:
 			w = int(sys.argv[1])
@@ -491,6 +529,7 @@ if __name__ == "__main__":
 		except:
 			print ("[+] Error: Cannot parse arguments")
 			print ("[+] Usage: python ./radar.py [radar width] [radar height]")
+			input("Press Enter to continue...")
 			exit(1)
 	
 	print ("[+] Searching for BFV.exe...")
@@ -502,6 +541,7 @@ if __name__ == "__main__":
 		time.sleep(1)
 	else:
 		print ("[+] Error: Cannot find BFV.exe")
+		input("Press Enter to continue...")
 		exit(1)
 	print ("[+] BFV.exe found, Handle: 0x%x"%(phandle))
 	
