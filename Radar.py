@@ -90,6 +90,7 @@ class Radar():
 		for i in range(random.randint(5, 15)):
 			caption += chr((random.randint(65, 90),random.randint(97, 122))[random.randint(0, 1)])
 		pygame.display.set_caption(caption)
+		self.caption = caption
 		
 		# Set Screen Parameters
 		self.height = height
@@ -104,6 +105,16 @@ class Radar():
 		
 		# Initialize Update Count
 		self.UpdateCount = 0
+		
+		# -- ALWAYS ON TOP OPTIONAL SETTING --
+		# NOTE: Uncomment the following 2 lines of code to have
+		# your pygame window stay always on top of every window
+		#
+		# WARNING: KEEPING THE WINDOW ON TOP OF THE GAME WINDOW
+		# MAKES YOU SUSCEPTIBLE TO ANTI-SHEET SCREEN SHOT DETECTION
+		#
+		#api = MemAccess.WinApi()
+		#api.set_topmost("pygame", self.caption)
 		
 	def GetRadarData(self,MyPosition,MyViewmatrix,Transform):
 		try:
@@ -534,8 +545,6 @@ if __name__ == "__main__":
 	
 	print ("[+] Searching for BFV.exe...")
 	
-
-	
 	phandle = BFV.GetHandle()
 	if (phandle):
 		time.sleep(1)
@@ -550,6 +559,7 @@ if __name__ == "__main__":
 	print ("[+] Starting Radar...")
 	Radar = Radar(w,h)
 	print ("[+] Done")
+		
 	cnt = 0
 	while 1:
 		BFV.Process(phandle,cnt) # this accesses game memory for data

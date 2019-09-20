@@ -86,6 +86,20 @@ class WinApi():
 		si = self.GetNativeSystemInfo()
 		self.max_addr = si.lpMaximumApplicationAddress
 		self.min_addr = si.lpMinimumApplicationAddress
+		
+		self.FindWindow = windll.user32.FindWindowW
+		self.SetWindowPos = windll.user32.SetWindowPos
+
+	def set_topmost(self, classname, windowname):
+		hwnd = self.FindWindow(classname,windowname)
+		if (hwnd == 0):
+			raise RuntimeError("set_topmost: Could not find window")
+		HWND_TOPMOST = -1
+		SWP_NOMOVE = 0x0002
+		SWP_NOSIZE = 0x0001
+		ret = self.SetWindowPos(hwnd,HWND_TOPMOST,0,0,0,0,SWP_NOMOVE | SWP_NOSIZE)
+		if (ret == 0):
+			raise RuntimeError("set_topmost: Could not set window as top-most")
 				
 	def is_elevated(self,phandle):
 		token = HANDLE()
