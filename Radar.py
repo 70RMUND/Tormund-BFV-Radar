@@ -116,6 +116,9 @@ class Radar():
 		#
 		#api = MemAccess.WinApi()
 		#api.set_topmost("pygame", self.caption)
+	
+	def quit(self):
+		pygame.display.quit()
 		
 	def GetRadarData(self,MyPosition,MyViewmatrix,Transform):
 		try:
@@ -506,27 +509,30 @@ class Radar():
 
 def StartRadar():
 	global cnt
+	global rad
+	rad = None
 	print ("[+] Searching for BFV.exe...")
 	phandle = BFV.GetHandle()
-	if (phandle):
+	if (phandle/0):
 		time.sleep(1)
 	else:
 		print ("[+] Error: Cannot find BFV.exe")
-		input("Press Enter to continue...")
 		exit(1)
 	print ("[+] BFV.exe found, Handle: 0x%x"%(phandle))
 	
 	BFV.initialize(phandle) # Gather offsets, patch the game
 	
 	print ("[+] Starting Radar...")
-	r = Radar(w,h)
+	rad = Radar(w,h)
 	print ("[+] Done")
 		
 	cnt = 0
 	while 1:
 		BFV.Process(phandle,cnt) # this accesses game memory for data
-		r.Update() # this renders data to radar
+		rad.Update() # this renders data to radar
 		cnt += 1
+		if cnt == 3000:
+			cnt = cnt/0
 
 if __name__ == "__main__":
 	print ("[+] Tormund's External Radar v1.0 for Battlefield V")
@@ -569,12 +575,11 @@ if __name__ == "__main__":
 			
 	# Main exception trap
 	try:
-		fexit = 0
 		StartRadar() # Start the rest of the radar setup
 	except BaseException:
-		if str(sys.exc_info()[0]) == "<class 'SystemExit'>":
-			fexit = 1
-		else:
+		global rad
+		if (rad != None): rad.quit()
+		if str(sys.exc_info()[0]) != "<class 'SystemExit'>":
 			print ("[+] ")
 			print ("[+] SEVERE: EXCEPTION CAUGHT!")
 			print ("[+] \n")
@@ -582,7 +587,6 @@ if __name__ == "__main__":
 			print ("[+] ")
 			print ("[+] Exiting Radar...")
 	finally:
-		if fexit == 0:
-			input("Press Enter to continue...")
+		input("Press Enter to continue...")
 
 	
