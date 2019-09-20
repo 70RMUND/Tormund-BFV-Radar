@@ -91,6 +91,8 @@ class WinApi():
 		self.SetWindowPos = windll.user32.SetWindowPos
 
 	def set_topmost(self, classname, windowname):
+		if (classname == "pygame"):
+			print ("[+] WARNING: Setting the radar window as TOP MOST (ANTI-CHEAT RISK!)")
 		hwnd = self.FindWindow(classname,windowname)
 		if (hwnd == 0):
 			raise RuntimeError("set_topmost: Could not find window")
