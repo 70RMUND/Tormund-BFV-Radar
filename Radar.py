@@ -513,7 +513,7 @@ def StartRadar():
 	rad = None
 	print ("[+] Searching for BFV.exe...")
 	phandle = BFV.GetHandle()
-	if (phandle/0):
+	if (phandle):
 		time.sleep(1)
 	else:
 		print ("[+] Error: Cannot find BFV.exe")
@@ -531,8 +531,6 @@ def StartRadar():
 		BFV.Process(phandle,cnt) # this accesses game memory for data
 		rad.Update() # this renders data to radar
 		cnt += 1
-		if cnt == 3000:
-			cnt = cnt/0
 
 if __name__ == "__main__":
 	print ("[+] Tormund's External Radar v1.0 for Battlefield V")
