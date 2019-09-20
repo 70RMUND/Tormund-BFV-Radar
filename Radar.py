@@ -4,6 +4,7 @@ import BFV
 import random
 import math
 import sys, os
+import traceback
 import time
 import MemAccess
 import struct
@@ -503,10 +504,33 @@ class Radar():
 		pygame.display.update()
 		self.UpdateCount += 1
 
+def StartRadar():
+	global cnt
+	print ("[+] Searching for BFV.exe...")
+	phandle = BFV.GetHandle()
+	if (phandle):
+		time.sleep(1)
+	else:
+		print ("[+] Error: Cannot find BFV.exe")
+		input("Press Enter to continue...")
+		exit(1)
+	print ("[+] BFV.exe found, Handle: 0x%x"%(phandle))
+	
+	BFV.initialize(phandle) # Gather offsets, patch the game
+	
+	print ("[+] Starting Radar...")
+	r = Radar(w,h)
+	print ("[+] Done")
+		
+	cnt = 0
+	while 1:
+		BFV.Process(phandle,cnt) # this accesses game memory for data
+		r.Update() # this renders data to radar
+		cnt += 1
+
 if __name__ == "__main__":
 	print ("[+] Tormund's External Radar v1.0 for Battlefield V")
-	
-	
+
 	if (is_admin() == False):
 		print ("[+] Error: python (or commandline) must be ran with admin privledges")
 		input("Press Enter to continue...")
@@ -542,27 +566,23 @@ if __name__ == "__main__":
 			print ("[+] Usage: python ./radar.py [radar width] [radar height]")
 			input("Press Enter to continue...")
 			exit(1)
-	
-	print ("[+] Searching for BFV.exe...")
-	
-	phandle = BFV.GetHandle()
-	if (phandle):
-		time.sleep(1)
-	else:
-		print ("[+] Error: Cannot find BFV.exe")
-		input("Press Enter to continue...")
-		exit(1)
-	print ("[+] BFV.exe found, Handle: 0x%x"%(phandle))
-	
-	BFV.initialize(phandle) # Gather offsets, patch the game
-	
-	print ("[+] Starting Radar...")
-	Radar = Radar(w,h)
-	print ("[+] Done")
-		
-	cnt = 0
-	while 1:
-		BFV.Process(phandle,cnt) # this accesses game memory for data
-		Radar.Update() # this renders data to radar
-		cnt += 1
+			
+	# Main exception trap
+	try:
+		fexit = 0
+		StartRadar() # Start the rest of the radar setup
+	except BaseException:
+		if str(sys.exc_info()[0]) == "<class 'SystemExit'>":
+			fexit = 1
+		else:
+			print ("[+] ")
+			print ("[+] SEVERE: EXCEPTION CAUGHT!")
+			print ("[+] \n")
+			print(traceback.format_exc())
+			print ("[+] ")
+			print ("[+] Exiting Radar...")
+	finally:
+		if fexit == 0:
+			input("Press Enter to continue...")
+
 	
