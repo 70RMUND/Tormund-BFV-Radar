@@ -278,6 +278,27 @@ class WinApi():
 			#exit(1)
 		
 	def rpm_string(self,handle,addr):
+		buffer = c_ulonglong(addr)
+		str = ""		
+		while (1):
+			c = c_char()
+			ret = self.ReadProcessMemory(handle,buffer,byref(c),sizeof(c),None)
+			self._access+=1
+			if (ret == 0):
+				if (self._debug):
+					print ("[+] ERROR: ReadProcessMemory Failed: 0x%x" %(self.GetLastError()))
+					print ("[+] ERROR: Access of Address 0x%x failed" % (addr))
+				return ""
+				#exit(1)
+			if (c.value[0] == 0):
+				break
+			str += chr(c.value[0])
+			buffer.value += 1
+		if (self._debug): print ("rpm_uint64 -> addr: 0x%x val: %s"%(addr,str))
+		return str	
+		
+		
+	def rpm_pstring(self,handle,addr):
 		buffer = c_ulonglong(0)
 		addr_ = c_ulonglong(addr)
 		ret = self.ReadProcessMemory(handle,addr_,byref(buffer),sizeof(buffer),None)
@@ -444,6 +465,10 @@ class MemAccess(object):
 		
 	def read_string(self,off):
 		str = api.rpm_string(self.pHandle,off+self.next_base)
+		return str
+		
+	def read_pstring(self,off):
+		str = api.rpm_pstring(self.pHandle,off+self.next_base)
 		return str
 		
 	def read_vec4(self,off=0):

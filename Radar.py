@@ -239,7 +239,6 @@ class Radar():
 			# Transpose soldier coordinates to radar
 			Position = self.FromCenter(Pos[0],Pos[1])
 			
-			
 			if Soldier.alive:
 				# if our soldier is alive we draw an arrow in the direction of its yaw
 				# we color the soldier based on if it is an enemy or not

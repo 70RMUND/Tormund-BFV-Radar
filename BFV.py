@@ -284,7 +284,7 @@ def find_typeinfo(name,first,pHandle):
 	mem = MemAccess(pHandle)
 	typeinfo = first
 	while (typeinfo):
-		if mem[typeinfo](0).read_string(0) == name:
+		if mem[typeinfo](0).read_pstring(0) == name:
 			return typeinfo
 		typeinfo = mem[typeinfo].read_uint64(8)
 	return -1
@@ -435,7 +435,7 @@ def list_current_entities(pHandle):
 	next = offsets["FIRST_TYPEINFO"]
 	while (next!=0):
 		if (mem[next].read_uint64(0x68) &0x8000000000000000):
-			str = mem[next](0).read_string(0)
+			str = mem[next](0).read_pstring(0)
 			
 			if len(str)>0:
 				num = len(GetEntityList(pHandle,next))
@@ -443,6 +443,7 @@ def list_current_entities(pHandle):
 		next = mem[next].read_uint64(0x8)
 
 class GameSoldierData():
+	name = ""
 	pointer = 0
 	transform = None
 	health = 0
@@ -705,6 +706,8 @@ def Process(pHandle,cnt):
 		Health = mem[Soldier](CSE_HealthComponent).read_float(HC_Health)
 		MaxHealth = mem[Soldier](CSE_HealthComponent).read_float(HC_MaxHealth)
 		
+		name = mem[Soldier](CSE_Player).read_string(0x40)
+		
 		Alive = True
 		if (Health <= 0.0):
 			Alive = False
@@ -717,6 +720,7 @@ def Process(pHandle,cnt):
 		SoldierData.pointer = Soldier
 		SoldierData.health = Health
 		SoldierData.maxhealth = MaxHealth
+		SoldierData.name = name
 		
 		g_gamedata.AddSoldier(SoldierData)
 	
@@ -734,7 +738,7 @@ def Process(pHandle,cnt):
 		VehicleData.ownership = 0
 		VehicleData.transform = Transform
 		VehicleData.pointer = Vehicle
-		VehicleData.vehicletype = mem[Vehicle](CVE_VehicleEntityData).read_string(VED_ControllableType)
+		VehicleData.vehicletype = mem[Vehicle](CVE_VehicleEntityData).read_pstring(VED_ControllableType)
 		VehicleData.teamid = (mem[Vehicle].read_uint32(CVE_TeamID))
 		g_gamedata.AddVehicle(VehicleData)
 		#print ("0x%016x"%Vehicle)
@@ -749,8 +753,8 @@ def Process(pHandle,cnt):
 			break
 		
 		Transform = mem[UIObj].read_mat4(OD_Transform)
-		ShortName = mem[UIObj].read_string(OD_ShortName)
-		LongName = mem[UIObj].read_string(OD_LongName)
+		ShortName = mem[UIObj].read_pstring(OD_ShortName)
+		LongName = mem[UIObj].read_pstring(OD_LongName)
 		TeamState = mem[UIObj].read_uint32(OD_TeamState)
 		ControlledState = mem[UIObj].read_uint32(OD_ControlledState)
 		
@@ -836,7 +840,7 @@ def Process(pHandle,cnt):
 	g_gamedata.ClearSupplies()
 	for Supply in GetEntityList(pHandle,offsets["ClientSupplySphereEntity"],0xb8):
 		#print (hex(Supply))
-		SupplyName = mem[Supply](0x38).read_string(0xB8)
+		SupplyName = mem[Supply](0x38).read_pstring(0xB8)
 		pos = mem[Supply].read_vec4(0x100)
 		#if pos == 0:
 		#	continue
@@ -879,9 +883,10 @@ def Process(pHandle,cnt):
 				if g_gamedata.LastLootPtr not in g_gamedata.loots:
 					if (mem[g_gamedata.LastLootPtr].read_int32(0x1b8) != -1):
 						Loot = GameLootData()
-						Loot.LootName = mem[g_gamedata.LastLootPtr](0x670).read_string(0x30)
+						print ("LootPtr: " + hex(g_gamedata.LastLootPtr))
+						Loot.LootName = mem[g_gamedata.LastLootPtr](0x6A0).read_pstring(0x40)
 						Loot.LootType = mem[g_gamedata.LastLootPtr](0x38).read_uint32(0x118)
-						Loot.ItemName = mem[g_gamedata.LastLootPtr](0x38)(0x100)(0x0).read_string(0x18)
+						Loot.ItemName = mem[g_gamedata.LastLootPtr](0x38)(0x100)(0x0).read_pstring(0x18)
 						
 						Loot.transform = GetEntityTransform(pHandle,g_gamedata.LastLootPtr)
 						g_gamedata.loots[g_gamedata.LastLootPtr] = Loot
@@ -907,9 +912,9 @@ def Process(pHandle,cnt):
 				if g_gamedata.LastVestLootPtr not in g_gamedata.loots:
 					if (mem[g_gamedata.LastVestLootPtr].read_int32(0x1b8) != -1):
 						Loot = GameLootData()
-						Loot.LootName =  mem[g_gamedata.LastVestLootPtr](0x670).read_string(0x30)
+						Loot.LootName =  mem[g_gamedata.LastVestLootPtr](0x6A0).read_pstring(0x40)
 						Loot.VestEntity = True
-						Loot.ItemName = mem[g_gamedata.LastVestLootPtr](0x38)(0x100)(0x0).read_string(0x18)
+						Loot.ItemName = mem[g_gamedata.LastVestLootPtr](0x38)(0x100)(0x0).read_pstring(0x18)
 						Loot.transform = GetEntityTransform(pHandle,g_gamedata.LastVestLootPtr)
 						#DebugPrintMatrix(Loot.transform)
 						#print (hex(g_gamedata.LastVestLootPtr))
