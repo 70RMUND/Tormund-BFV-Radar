@@ -300,25 +300,25 @@ def build_offsets(pHandle):
 	offsets["Dx11Secret"] = 0x598447EFD7A36912
 	offsets["Dx11EncBuffer"] = 0
 	offsets["TIMESTAMP"] = get_buildtime(pHandle)
-	offsets["GAMERENDERER"]                    = 0x1447CEB28
-	offsets["CLIENT_GAME_CONTEXT"]             = 0x144722378
-	offsets["OBJECTIVE_MANAGER"]               = 0x144665FF8  # FF 0D ? ? ? ? 48 8B 1D [? ? ? ?] 48 8B 43 10 48 8B 4B 08 48 3B C8 74 0E
-	offsets["CLIENTSHRINKINGPLAYAREA"]         = 0x14468C8D0  # 48 8B F2 48 8B D9 4C 8B 35 [? ? ? ?] 4D 85 F6
-	offsets["ClientSoldierEntity"]             = 0x144F0F3B0
-	offsets["ClientVehicleEntity"]             = 0x144E16720
-	offsets["ClientSupplySphereEntity"]        = 0x144C69E30
-	offsets["ClientCombatAreaTriggerEntity"]   = 0x144E17980
-	offsets["ClientExplosionPackEntity"]       = 0x144F14DE0
-	offsets["ClientProxyGrenadeEntity"]        = 0x144F14AB0
-	offsets["ClientGrenadeEntity"]             = 0x144F14CD0
-	offsets["ClientInteractableGrenadeEntity"] = 0x144C359B0
-	offsets["ClientCapturePointEntity"]        = 0x144C24B90
-	offsets["ClientLootItemEntity"]            = 0x144CBF750
-	offsets["ClientArmorVestLootItemEntity"]   = 0x144C6C310
-	offsets["PROTECTED_THREAD"]                = 0x144729F10
-	offsets["OBFUS_MGR_PTR_1"]                 = 0x14388A680
-	offsets["OBFUS_MGR_RET_1"]                 = 0x1416756C8
-	offsets["OBFUS_MGR_DEC_FUNC"]              = 0x1416317D0
+	offsets["GAMERENDERER"]                    = 0x144748e58
+	offsets["CLIENT_GAME_CONTEXT"]             = 0x1446A44D8
+	offsets["OBJECTIVE_MANAGER"]               = 0x1445ED920 # FF 0D ? ? ? ? 48 8B 1D [? ? ? ?] 48 8B 43 10 48 8B 4B 08 48 3B C8 74 0E
+	offsets["CLIENTSHRINKINGPLAYAREA"]         = 0x1445CC5D0 # ? 8B F2 48 8B D9 ? 8B 35 [? ? ? ?] ? 85 F6
+	offsets["ClientSoldierEntity"]             = 0x144E73FC0
+	offsets["ClientVehicleEntity"]             = 0x144D7A8A0
+	offsets["ClientSupplySphereEntity"]        = 0x144BD5DC0
+	offsets["ClientCombatAreaTriggerEntity"]   = 0x144D7BB00
+	offsets["ClientExplosionPackEntity"]       = 0x144E799F0
+	offsets["ClientProxyGrenadeEntity"]        = 0x144E796C0
+	offsets["ClientGrenadeEntity"]             = 0x144E798E0
+	offsets["ClientInteractableGrenadeEntity"] = 0x144BF2AB0
+	offsets["ClientCapturePointEntity"]        = 0x144BC1220
+	offsets["ClientLootItemEntity"]            = 0x144BC0080
+	offsets["ClientArmorVestLootItemEntity"]   = 0x144BF6A60
+	offsets["PROTECTED_THREAD"]                = 0x1446A4738
+	offsets["OBFUS_MGR_PTR_1"]                 = 0x143818AE0
+	offsets["OBFUS_MGR_RET_1"]                 = 0x141624C08
+	offsets["OBFUS_MGR_DEC_FUNC"]              = 0x1415E0D20
 	return offsets
 
 def GetLocalPlayerList(pHandle):
@@ -749,7 +749,7 @@ def Process(pHandle,cnt):
 	while (1):
 		UIObj = mem[offsets["OBJECTIVE_MANAGER"]](0)(0x38).read_uint64(i*8)
 		i+=1
-		if mem[UIObj].read_uint64(0) != 0x1437A2030:
+		if mem[UIObj].read_uint64(0) != 0x143727260:
 			break
 		
 		Transform = mem[UIObj].read_mat4(OD_Transform)
@@ -876,14 +876,10 @@ def Process(pHandle,cnt):
 		# kill our fps. We don't need low latency for these
 		for n in range(5):
 			g_gamedata.LastLootPtr = GetNextEntity(pHandle,g_gamedata.LastLootPtr,offsets["ClientLootItemEntity"],flink_offset=0x88)
-			
-			#print(hex(g_gamedata.LastLootPtr))
-			
 			if (g_gamedata.LastLootPtr!=0):
 				if g_gamedata.LastLootPtr not in g_gamedata.loots:
 					if (mem[g_gamedata.LastLootPtr].read_int32(0x1b8) != -1):
 						Loot = GameLootData()
-						print ("LootPtr: " + hex(g_gamedata.LastLootPtr))
 						Loot.LootName = mem[g_gamedata.LastLootPtr](0x6A0).read_pstring(0x40)
 						Loot.LootType = mem[g_gamedata.LastLootPtr](0x38).read_uint32(0x118)
 						Loot.ItemName = mem[g_gamedata.LastLootPtr](0x38)(0x100)(0x0).read_pstring(0x18)
@@ -916,8 +912,6 @@ def Process(pHandle,cnt):
 						Loot.VestEntity = True
 						Loot.ItemName = mem[g_gamedata.LastVestLootPtr](0x38)(0x100)(0x0).read_pstring(0x18)
 						Loot.transform = GetEntityTransform(pHandle,g_gamedata.LastVestLootPtr)
-						#DebugPrintMatrix(Loot.transform)
-						#print (hex(g_gamedata.LastVestLootPtr))
 						g_gamedata.loots[g_gamedata.LastVestLootPtr] = Loot
 				else:
 					g_gamedata.loots[g_gamedata.LastVestLootPtr].AccessCount += 1
