@@ -506,6 +506,18 @@ class GameSupplyData():
 	name = ""
 	transform = [0,0,0,0]
 	
+class FSObjectData():
+	pointer = 0
+	typename = ""
+	transform = [0,0,0,0]
+	
+class GameCircleData():
+	pointer = 0
+	OuterCircle_Moving = [0,0,0,0]
+	InnerCircle_Const = [0,0,0,0]
+	OuterCircleRadius_Moving = 0.0
+	InnerCircleRadius_Const = 0.0
+	
 class GameCircleData():
 	pointer = 0
 	OuterCircle_Moving = [0,0,0,0]
@@ -514,6 +526,9 @@ class GameCircleData():
 	InnerCircleRadius_Const = 0.0
 
 class GameData():
+	infirestorm = False
+	testcrates = []
+	testsafes = []
 	myplayer = 0
 	mysoldier = 0
 	myteamid = 0
@@ -531,6 +546,7 @@ class GameData():
 		self.explosives = []
 		self.grenades = []
 		self.supplies = []
+		self.fsobjects = []
 		self.uiobjectives = []
 		self.boundsdata = [[],[],[]]
 		self.boundsstate = 0
@@ -672,7 +688,7 @@ def Process(pHandle,cnt):
 	#print ("MySoldier: 0x%016X" % MySoldier)
 	#print ("MyTeamId : 0x%016X" % MyTeamId)
 	#print ("MyPos    : %s\n" % str(MyPos))
-	
+		
 	if MySoldier == 0:
 		g_gamedata.myviewmatrix = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]]
 		g_gamedata.mytransform = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]]
@@ -863,7 +879,31 @@ def Process(pHandle,cnt):
 	# This pointer only exists if we are in FireStorm mode
 	ShrinkingPlayArea = mem[offsets["CLIENTSHRINKINGPLAYAREA"]](0).me()
 	g_gamedata.circledata = None
+	if (not ShrinkingPlayArea):
+		g_gamedata.infirestorm = False
+		g_gamedata.fsobjects = []
+		
 	if (ShrinkingPlayArea):
+		if (not g_gamedata.infirestorm):
+			for model in GetEntityList(pHandle,0x0000000144D73A20,0x88):
+				name = mem[model](0x38)(0xA8).read_pstring(0x18)
+				if name == "artassets/props/gadgetcrate_01/gadgetcrate_01_200_paperfilling_Mesh":
+					fsobject = FSObjectData()
+					fsobject.pointer = model
+					fsobject.typename = "crate"
+					fsobject.transform = GetEntityTransform(pHandle,model)
+					g_gamedata.fsobjects += [fsobject]
+				elif name == "dakar/gameplay/prefabs/objectives/dk_safe_02_lid_Mesh":
+					fsobject = FSObjectData()
+					fsobject.pointer = model
+					fsobject.typename = "safe"
+					fsobject.transform = GetEntityTransform(pHandle,model)
+					g_gamedata.fsobjects += [fsobject]
+		g_gamedata.infirestorm = True
+	
+		
+	
+	
 		CircleData = GameCircleData()
 		CircleData.OuterCircle_Moving = mem[ShrinkingPlayArea].read_vec4(0x40)
 		CircleData.InnerCircle_Const = mem[ShrinkingPlayArea].read_vec4(0x50)

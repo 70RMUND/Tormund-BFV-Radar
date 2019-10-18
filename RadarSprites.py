@@ -116,6 +116,11 @@ class RadarSprites():
 		self.explosivegreen = self.explosive.copy()
 		self.swap_pixels(self.explosivered,[0xFF,0xFF,0xFF,0xFF],[0xFF,0,0,0xFF])
 		self.swap_pixels(self.explosivegreen,[0xFF,0xFF,0xFF,0xFF],[0x0,0xFF,0,0xFF])
+		
+		# Crate
+		self.crate = pygame.image.load(scriptdir+"/images/crate.png")
+		# Safe
+		self.safe = pygame.image.load(scriptdir+"/images/safe.png")
 
 	def swap_pixels(self,img,colorbefore,colorafter):
 		width,height=img.get_size()

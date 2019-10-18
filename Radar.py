@@ -362,6 +362,25 @@ class Radar():
 					pygame.draw.polygon(self.screen, C, PointTransformed,3)
 			
 	def UpdateFirestorm(self,data):
+	
+		for fsobject in data.fsobjects:
+			if fsobject.typename == "safe":
+				RadarData = self.GetRadarData(data.mytransform[3],data.myviewmatrix,fsobject.transform)
+				Pos = RadarData[0]
+				Yaw = RadarData[1]
+
+				# Transpose vehicle coordinates to radar
+				Position = self.FromCenter(Pos[0],Pos[1])
+				self.screen.blit(self.gfx.safe,(Position.x,Position.y))
+			elif fsobject.typename == "crate":
+				RadarData = self.GetRadarData(data.mytransform[3],data.myviewmatrix,fsobject.transform)
+				Pos = RadarData[0]
+				Yaw = RadarData[1]
+
+				# Transpose vehicle coordinates to radar
+				Position = self.FromCenter(Pos[0],Pos[1])
+				self.screen.blit(self.gfx.crate,(Position.x,Position.y))
+	
 		if (data.circledata != None):
 			c = data.circledata
 
