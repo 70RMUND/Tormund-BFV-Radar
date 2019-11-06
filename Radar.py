@@ -372,14 +372,17 @@ class Radar():
 				# Transpose vehicle coordinates to radar
 				Position = self.FromCenter(Pos[0],Pos[1])
 				self.screen.blit(self.gfx.safe,(Position.x,Position.y))
-			elif fsobject.typename == "crate":
-				RadarData = self.GetRadarData(data.mytransform[3],data.myviewmatrix,fsobject.transform)
-				Pos = RadarData[0]
-				Yaw = RadarData[1]
-
-				# Transpose vehicle coordinates to radar
-				Position = self.FromCenter(Pos[0],Pos[1])
-				self.screen.blit(self.gfx.crate,(Position.x,Position.y))
+			
+			# Crates are kind of noisy, if you want them uncomment this block
+			
+			#elif fsobject.typename == "crate":
+			#	RadarData = self.GetRadarData(data.mytransform[3],data.myviewmatrix,fsobject.transform)
+			#	Pos = RadarData[0]
+			#	Yaw = RadarData[1]
+			#
+			#	# Transpose vehicle coordinates to radar
+			#	Position = self.FromCenter(Pos[0],Pos[1])
+			#	self.screen.blit(self.gfx.crate,(Position.x,Position.y))
 	
 		if (data.circledata != None):
 			c = data.circledata
@@ -408,10 +411,14 @@ class Radar():
 			Position = self.FromCenter(Pos[0],Pos[1])
 			x = Position.x
 			y = Position.y
-
+			#if "armor" in LootEntity.ItemName.lower():
+			#	print (LootEntity.ItemName + " " + LootEntity.LootName)
 			if ("U_Dakar_Bandages" in LootEntity.ItemName):
 				color = Color.RED
 				self.DrawDot((x,y),color)
+			elif ("U_Boys" in LootEntity.ItemName):
+					color = self.blink()
+					self.Text("By",color,x,y)
 			elif ("FlareGun" in LootEntity.ItemName):
 				if ("V1Rocket" in LootEntity.ItemName):
 					color = Color.GREEN
@@ -420,25 +427,31 @@ class Radar():
 					color = Color.RED
 					self.Text("F",color,x,y)
 			elif ("U_BREN" in LootEntity.ItemName):
-				if (LootEntity.LootName[-5:] == "Tier2"):
+				if ("Tier2" in LootEntity.LootName):
 					color = Color.GREEN
 					self.Text("B",color,x,y)
-				elif (LootEntity.LootName[-5:] == "Tier3"):
+				elif ("Tier3" in LootEntity.LootName):
 					color = self.blink()
 					self.Text("B",color,x,y)
 				else:
 					color = Color.WHITE
 					self.Text("B",color,x,y)
 			elif ("BoltAction" in LootEntity.ItemName):
-				if (LootEntity.LootName[-5:] == "Tier2"):
+				if ("Tier2" in LootEntity.LootName):
 					color = Color.GREEN
 					self.Text("S",color,x,y)
-				elif (LootEntity.LootName[-5:] == "Tier3"):
+				elif ("Tier3" in LootEntity.LootName):
 					color = self.blink()
 					self.Text("S",color,x,y)
 				else:
 					color = Color.WHITE
 					self.Text("S",color,x,y)
+			elif "ArmorVest_Medium" in LootEntity.ItemName:
+				color = Color.YELLOW
+				self.Text("V",color,x,y)
+			elif "ArmorVest_Large" in LootEntity.ItemName:
+				color = self.blink()
+				self.Text("V",color,x,y)
 			elif ("Armor" in LootEntity.ItemName):
 				color = Color.YELLOW
 				self.DrawDot((x,y),color)
@@ -452,13 +465,8 @@ class Radar():
 				else:
 					color = Color.WHITE
 					self.Text(".",color,x,y)
-			elif LootEntity.VestEntity:
-				if (LootEntity.LootName[-5:] == "Tier3"):
-					color = self.blink()
-					self.Text("A",color,x,y)
-				else:
-					color = Color.YELLOW
-					self.Text("A",color,x,y)
+			
+					
 			else:
 				color = Color.WHITE
 				self.Text(".",color,x,y)
@@ -551,7 +559,7 @@ def StartRadar():
 		cnt += 1
 
 if __name__ == "__main__":
-	print ("[+] Tormund's External Radar v1.2.1 for Battlefield V (Sept 26, 2019 Patch)")
+	print ("[+] Tormund's External Radar v1.2.1 for Battlefield V (Halloween 2019 Patch)")
 
 	if (is_admin() == False):
 		print ("[+] Error: python (or commandline) must be ran with admin privledges")

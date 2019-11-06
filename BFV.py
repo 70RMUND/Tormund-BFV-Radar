@@ -17,10 +17,10 @@ GameRenderer_RenderView = 0x60 #
 RenderView_ViewMatrix = 0x2F0 #
 HC_Health = 0x20
 HC_MaxHealth = 0x24
-CVE_TeamID = 0x1cc
-CSE_HealthComponent = 0x280 #
+CVE_TeamID = 0x25c
+CSE_HealthComponent = 0x310 #
 CCPE_Transform = 0x3c0
-CSE_Player = 0x340
+CSE_Player = 0x3D0
 CVE_VehicleEntityData = 0x38
 VED_ControllableType = 0x1F8
 CCAT_ActiveTrigger = 0xD84
@@ -300,25 +300,27 @@ def build_offsets(pHandle):
 	offsets["Dx11Secret"] = 0x598447EFD7A36912
 	offsets["Dx11EncBuffer"] = 0
 	offsets["TIMESTAMP"] = get_buildtime(pHandle)
-	offsets["GAMERENDERER"]                    = 0x144748e58
-	offsets["CLIENT_GAME_CONTEXT"]             = 0x1446A44D8
-	offsets["OBJECTIVE_MANAGER"]               = 0x1445ED920 # FF 0D ? ? ? ? 48 8B 1D [? ? ? ?] 48 8B 43 10 48 8B 4B 08 48 3B C8 74 0E
-	offsets["CLIENTSHRINKINGPLAYAREA"]         = 0x1445CC5D0 # ? 8B F2 48 8B D9 ? 8B 35 [? ? ? ?] ? 85 F6
-	offsets["ClientSoldierEntity"]             = 0x144E73FC0
-	offsets["ClientVehicleEntity"]             = 0x144D7A8A0
-	offsets["ClientSupplySphereEntity"]        = 0x144BD5DC0
-	offsets["ClientCombatAreaTriggerEntity"]   = 0x144D7BB00
-	offsets["ClientExplosionPackEntity"]       = 0x144E799F0
-	offsets["ClientProxyGrenadeEntity"]        = 0x144E796C0
-	offsets["ClientGrenadeEntity"]             = 0x144E798E0
-	offsets["ClientInteractableGrenadeEntity"] = 0x144BF2AB0
-	offsets["ClientCapturePointEntity"]        = 0x144BC1220
-	offsets["ClientLootItemEntity"]            = 0x144BC0080
-	offsets["ClientArmorVestLootItemEntity"]   = 0x144BF6A60
-	offsets["PROTECTED_THREAD"]                = 0x1446A4738
-	offsets["OBFUS_MGR_PTR_1"]                 = 0x143818AE0
-	offsets["OBFUS_MGR_RET_1"]                 = 0x141624C08
-	offsets["OBFUS_MGR_DEC_FUNC"]              = 0x1415E0D20
+	offsets["GAMERENDERER"]                    = 0x1446C8C48
+	offsets["CLIENT_GAME_CONTEXT"]             = 0x14461E518
+	offsets["OBJECTIVE_MANAGER"]               = 0x144576918 # FF 0D ? ? ? ? 48 8B 1D [? ? ? ?] 48 8B 43 10 48 8B 4B 08 48 3B C8 74 0E
+	offsets["CLIENTSHRINKINGPLAYAREA"]         = 0x14453BAF0 # ? 8B F2 48 8B D9 ? 8B 35 [? ? ? ?] ? 85 F6
+	offsets["ClientSoldierEntity"]             = 0x144DDE1E0
+	offsets["ClientVehicleEntity"]             = 0x144CEC4A0
+	offsets["ClientSupplySphereEntity"]        = 0x144BA2470
+	offsets["ClientCombatAreaTriggerEntity"]   = 0x144CED920
+	offsets["ClientExplosionPackEntity"]       = 0x144DE3930
+	offsets["ClientProxyGrenadeEntity"]        = 0x144DE3600
+	offsets["ClientGrenadeEntity"]             = 0x144DE3820
+	offsets["ClientInteractableGrenadeEntity"] = 0x144B1B7E0
+	offsets["ClientCapturePointEntity"]        = 0x144B09A10
+	offsets["ClientLootItemEntity"]            = 0x144B088C0
+	offsets["ClientArmorVestLootItemEntity"]   = 0x144B4EE40
+	offsets["ClientStaticModelEntity"]         = 0x144CE5840
+	offsets["PROTECTED_THREAD"]                = 0x1446261C0
+	offsets["OBFUS_MGR_PTR_1"]                 = 0x1437B2E10
+	offsets["OBFUS_MGR_RET_1"]                 = 0x1415F0F88
+	offsets["OBFUS_MGR_DEC_FUNC"]              = 0x1415AC7F0
+	offsets["OBJECTIVE_VTBL"]                  = 0x1436BDFC8
 	return offsets
 
 def GetLocalPlayerList(pHandle):
@@ -395,6 +397,8 @@ def GetNextEntity(pHandle,Ptr,typeinfo,flink_offset=0x88):
 		flink = mem[Ptr].read_uint64(flink_offset)
 		
 	ptr = PointerManager.decrypt_ptr(flink,key)-flink_offset
+	#if (typeinfo == offsets["ClientArmorVestLootItemEntity"]):
+		#print (hex(ptr))
 	if (isValid(ptr)):
 		return ptr
 	return 0
@@ -697,12 +701,13 @@ def Process(pHandle,cnt):
 	
 	# Render Soldiers
 	g_gamedata.ClearSoldiers()
-	for Soldier in GetEntityList(pHandle,offsets["ClientSoldierEntity"],0x88):
+	for Soldier in GetEntityList(pHandle,offsets["ClientSoldierEntity"],0x108):
+		#print ("0x%016x"%Soldier)
 		
 		# if you are me, skip
 		if (Soldier == MySoldier):
 			continue
-		#print ("0x%016x"%Soldier)
+
 		# if you are not attached to a ClientPlayer, skip
 		if (mem[Soldier](CSE_Player).me() == 0):
 			continue
@@ -742,9 +747,10 @@ def Process(pHandle,cnt):
 	
 	# Render Vehicles
 	g_gamedata.ClearVehicles()
-	for Vehicle in GetEntityList(pHandle,offsets["ClientVehicleEntity"],0x88):
+	for Vehicle in GetEntityList(pHandle,offsets["ClientVehicleEntity"],0x108):
 		if (Vehicle == MyVehicle):
 			continue
+		#print (hex(Vehicle))
 		Transform = GetEntityTransform(pHandle,Vehicle)
 		
 		if Transform == 0:
@@ -765,7 +771,7 @@ def Process(pHandle,cnt):
 	while (1):
 		UIObj = mem[offsets["OBJECTIVE_MANAGER"]](0)(0x38).read_uint64(i*8)
 		i+=1
-		if mem[UIObj].read_uint64(0) != 0x143727260:
+		if mem[UIObj].read_uint64(0) != offsets["OBJECTIVE_VTBL"]:
 			break
 		
 		Transform = mem[UIObj].read_mat4(OD_Transform)
@@ -836,7 +842,8 @@ def Process(pHandle,cnt):
 		g_gamedata.boundsstate = ST_SCAN
 	
 	g_gamedata.ClearExplosives()
-	for Explosive in GetEntityList(pHandle,offsets["ClientExplosionPackEntity"],0x88):
+	for Explosive in GetEntityList(pHandle,offsets["ClientExplosionPackEntity"],0x108):
+		#print ("Explosive: " + hex(Explosive))
 		Transform = GetEntityTransform(pHandle,Explosive)
 		Team = mem[Explosive].read_uint32(0x4c0)
 		ExplosiveData = GameExplosiveData()
@@ -846,7 +853,7 @@ def Process(pHandle,cnt):
 		g_gamedata.AddExplosive(ExplosiveData)
 
 	g_gamedata.ClearGrenades()
-	for Grenade in (GetEntityList(pHandle,offsets["ClientProxyGrenadeEntity"],0x88)+GetEntityList(pHandle,offsets["ClientGrenadeEntity"],0x88)+GetEntityList(pHandle,offsets["ClientInteractableGrenadeEntity"],0x88)):
+	for Grenade in (GetEntityList(pHandle,offsets["ClientProxyGrenadeEntity"],0x108)+GetEntityList(pHandle,offsets["ClientGrenadeEntity"],0x108)+GetEntityList(pHandle,offsets["ClientInteractableGrenadeEntity"],0x108)):
 		Transform = GetEntityTransform(pHandle,Grenade)
 		GrenadeData = GameGrenadeData()
 		GrenadeData.transform = Transform
@@ -885,7 +892,7 @@ def Process(pHandle,cnt):
 		
 	if (ShrinkingPlayArea):
 		if (not g_gamedata.infirestorm):
-			for model in GetEntityList(pHandle,0x0000000144D73A20,0x88):
+			for model in GetEntityList(pHandle,offsets["ClientStaticModelEntity"],0x108):
 				name = mem[model](0x38)(0xA8).read_pstring(0x18)
 				if name == "artassets/props/gadgetcrate_01/gadgetcrate_01_200_paperfilling_Mesh":
 					fsobject = FSObjectData()
@@ -915,12 +922,12 @@ def Process(pHandle,cnt):
 		# lets just walk them 5 entities per render so we don't completely
 		# kill our fps. We don't need low latency for these
 		for n in range(5):
-			g_gamedata.LastLootPtr = GetNextEntity(pHandle,g_gamedata.LastLootPtr,offsets["ClientLootItemEntity"],flink_offset=0x88)
+			g_gamedata.LastLootPtr = GetNextEntity(pHandle,g_gamedata.LastLootPtr,offsets["ClientLootItemEntity"],flink_offset=0x108)
 			if (g_gamedata.LastLootPtr!=0):
 				if g_gamedata.LastLootPtr not in g_gamedata.loots:
-					if (mem[g_gamedata.LastLootPtr].read_int32(0x1b8) != -1):
+					if (mem[g_gamedata.LastLootPtr].read_int32(0x238) != -1):
 						Loot = GameLootData()
-						Loot.LootName = mem[g_gamedata.LastLootPtr](0x6A0).read_pstring(0x40)
+						Loot.LootName = mem[g_gamedata.LastLootPtr](0x720).read_pstring(0x40)
 						Loot.LootType = mem[g_gamedata.LastLootPtr](0x38).read_uint32(0x118)
 						Loot.ItemName = mem[g_gamedata.LastLootPtr](0x38)(0x100)(0x0).read_pstring(0x18)
 						
@@ -928,7 +935,7 @@ def Process(pHandle,cnt):
 						g_gamedata.loots[g_gamedata.LastLootPtr] = Loot
 				else:
 					g_gamedata.loots[g_gamedata.LastLootPtr].AccessCount += 1
-					if (mem[g_gamedata.LastLootPtr].read_int32(0x1b8) == -1):
+					if (mem[g_gamedata.LastLootPtr].read_int32(0x238) == -1):
 						del g_gamedata.loots[g_gamedata.LastLootPtr]
 					elif (g_gamedata.loots[g_gamedata.LastLootPtr].AccessCount >= 50):
 						loots = copy.copy(g_gamedata.loots)
@@ -942,20 +949,22 @@ def Process(pHandle,cnt):
 		# lets just walk them 5 entities per render so we don't completely
 		# kill our fps. We don't need low latency for these		
 		for n in range(5):
-			g_gamedata.LastVestLootPtr = GetNextEntity(pHandle,g_gamedata.LastVestLootPtr,offsets["ClientArmorVestLootItemEntity"],flink_offset=0x88)
-			#print (hex(g_gamedata.LastVestLootPtr))
+			g_gamedata.LastVestLootPtr = GetNextEntity(pHandle,g_gamedata.LastVestLootPtr,offsets["ClientArmorVestLootItemEntity"],flink_offset=0x108)
+			
 			if (g_gamedata.LastVestLootPtr!=0):
+				
 				if g_gamedata.LastVestLootPtr not in g_gamedata.loots:
-					if (mem[g_gamedata.LastVestLootPtr].read_int32(0x1b8) != -1):
+					if (mem[g_gamedata.LastVestLootPtr].read_int32(0x238) != -1):
 						Loot = GameLootData()
-						Loot.LootName =  mem[g_gamedata.LastVestLootPtr](0x6A0).read_pstring(0x40)
+						Loot.LootName =  mem[g_gamedata.LastVestLootPtr](0x720).read_pstring(0x40)
+						
 						Loot.VestEntity = True
 						Loot.ItemName = mem[g_gamedata.LastVestLootPtr](0x38)(0x100)(0x0).read_pstring(0x18)
 						Loot.transform = GetEntityTransform(pHandle,g_gamedata.LastVestLootPtr)
 						g_gamedata.loots[g_gamedata.LastVestLootPtr] = Loot
 				else:
 					g_gamedata.loots[g_gamedata.LastVestLootPtr].AccessCount += 1
-					if (mem[g_gamedata.LastVestLootPtr].read_int32(0x1b8) == -1):
+					if (mem[g_gamedata.LastVestLootPtr].read_int32(0x238) == -1):
 						del g_gamedata.loots[g_gamedata.LastVestLootPtr]
 
 
