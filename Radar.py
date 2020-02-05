@@ -559,7 +559,7 @@ def StartRadar():
 		cnt += 1
 
 if __name__ == "__main__":
-	print ("[+] Tormund's External Radar v1.2.1 for Battlefield V (5.2.2-Patch - DEC 16, 2019)")
+	print ("[+] Tormund's External Radar v1.2.1 for Battlefield V (Chapter 6.0 Update - FEB 4, 2020)")
 
 	if (is_admin() == False):
 		print ("[+] Error: python (or commandline) must be ran with admin privledges")
