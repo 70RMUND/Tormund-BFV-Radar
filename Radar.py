@@ -554,7 +554,7 @@ def StartRadar():
 		
 	cnt = 0
 	while 1:
-		BFV.Process(phandle,cnt) # this accesses game memory for data 
+		BFV.Process(phandle,cnt) # this accesses game memory for data
 		rad.Update() # this renders data to radar
 		cnt += 1
 
