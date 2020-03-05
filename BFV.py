@@ -17,10 +17,10 @@ GameRenderer_RenderView = 0x60 #
 RenderView_ViewMatrix = 0x2F0 #
 HC_Health = 0x20
 HC_MaxHealth = 0x24
-CVE_TeamID = 0x25c
-CSE_HealthComponent = 0x310 #
-CCPE_Transform = 0x3c0
-CSE_Player = 0x3D0
+CVE_TeamID = 0x234
+CSE_HealthComponent = 0x2e8 # DONE
+CCPE_Transform = 0x3a0#0x3c0
+CSE_Player = 0x3A8
 CVE_VehicleEntityData = 0x38
 VED_ControllableType = 0x1F8
 CCAT_ActiveTrigger = 0xD84
@@ -300,27 +300,28 @@ def build_offsets(pHandle):
 	offsets["Dx11Secret"] = 0x598447EFD7A36912
 	offsets["Dx11EncBuffer"] = 0
 	offsets["TIMESTAMP"] = get_buildtime(pHandle)
-	offsets["GAMERENDERER"]                    = 0x1447A1878
-	offsets["CLIENT_GAME_CONTEXT"]             = 0x1446FC818
-	offsets["OBJECTIVE_MANAGER"]               = 0x14464D810 # FF 0D ? ? ? ? 48 8B 1D [? ? ? ?] 48 8B 43 10 48 8B 4B 08 48 3B C8 74 0E
-	offsets["CLIENTSHRINKINGPLAYAREA"]         = 0x14461E7D0 # ? 8B F2 48 8B D9 ? 8B 35 [? ? ? ?] ? 85 F6
-	offsets["ClientSoldierEntity"]             = 0x144ECFBD0
-	offsets["ClientVehicleEntity"]             = 0x144DDB630
-	offsets["ClientSupplySphereEntity"]        = 0x144C955A0
-	offsets["ClientCombatAreaTriggerEntity"]   = 0x144DDCD30
-	offsets["ClientExplosionPackEntity"]       = 0x144ED5320
-	offsets["ClientProxyGrenadeEntity"]        = 0x144ED4FF0
-	offsets["ClientGrenadeEntity"]             = 0x144ED5210
-	offsets["ClientInteractableGrenadeEntity"] = 0x144C27860
-	offsets["ClientCapturePointEntity"]        = 0x144C18C90
-	offsets["ClientLootItemEntity"]            = 0x144C4CD90
-	offsets["ClientArmorVestLootItemEntity"]   = 0x144C4E0A0
-	offsets["ClientStaticModelEntity"]         = 0x144DD43D0
-	offsets["PROTECTED_THREAD"]                = 0x1446FCBC4
-	offsets["OBFUS_MGR_PTR_1"]                 = 0x14386A730
-	offsets["OBFUS_MGR_RET_1"]                 = 0x141632BB8
-	offsets["OBFUS_MGR_DEC_FUNC"]              = 0x1415F0370
-	offsets["OBJECTIVE_VTBL"]                  = 0x1437646F0
+	
+	offsets["GAMERENDERER"]                    = 0x1447BB9F8
+	offsets["CLIENT_GAME_CONTEXT"]             = 0x144716E28
+	offsets["OBJECTIVE_MANAGER"]               = 0x144655BA8 # FF 0D ? ? ? ? 48 8B 1D [? ? ? ?] 48 8B 43 10 48 8B 4B 08 48 3B C8 74 0E
+	offsets["CLIENTSHRINKINGPLAYAREA"]         = 0x144638110 # ? 8B F2 48 8B D9 ? 8B 35 [? ? ? ?] ? 85 F6 
+	offsets["ClientSoldierEntity"]             = 0x144EEE510
+	offsets["ClientVehicleEntity"]             = 0x144DF9AF0
+	offsets["ClientSupplySphereEntity"]        = 0x144C3B820
+	offsets["ClientCombatAreaTriggerEntity"]   = 0x144DFB1F0
+	offsets["ClientExplosionPackEntity"]       = 0x144EF3C60
+	offsets["ClientProxyGrenadeEntity"]        = 0x144EF3930
+	offsets["ClientGrenadeEntity"]             = 0x144EF3B50
+	offsets["ClientInteractableGrenadeEntity"] = 0x144CAD990
+	offsets["ClientCapturePointEntity"]        = 0x144C68C40
+	offsets["ClientLootItemEntity"]            = 0x144C323E0
+	offsets["ClientArmorVestLootItemEntity"]   = 0x144CA53E0
+	offsets["ClientStaticModelEntity"]         = 0x144DF2890
+	offsets["PROTECTED_THREAD"]                = 0x1447171D4
+	offsets["OBFUS_MGR_PTR_1"]                 = 0x14387F690
+	offsets["OBFUS_MGR_RET_1"]                 = 0x141643F58
+	offsets["OBFUS_MGR_DEC_FUNC"]              = 0x141601740
+	offsets["OBJECTIVE_VTBL"]                  = 0x14376DEB8
 	return offsets
 
 def GetLocalPlayerList(pHandle):
@@ -701,7 +702,7 @@ def Process(pHandle,cnt):
 	
 	# Render Soldiers
 	g_gamedata.ClearSoldiers()
-	for Soldier in GetEntityList(pHandle,offsets["ClientSoldierEntity"],0x108):
+	for Soldier in GetEntityList(pHandle,offsets["ClientSoldierEntity"],0xf0):
 		#print ("0x%016x"%Soldier)
 		
 		# if you are me, skip
@@ -747,7 +748,7 @@ def Process(pHandle,cnt):
 	
 	# Render Vehicles
 	g_gamedata.ClearVehicles()
-	for Vehicle in GetEntityList(pHandle,offsets["ClientVehicleEntity"],0x108):
+	for Vehicle in GetEntityList(pHandle,offsets["ClientVehicleEntity"],0xF0):
 		if (Vehicle == MyVehicle):
 			continue
 		#print (hex(Vehicle))
@@ -842,7 +843,7 @@ def Process(pHandle,cnt):
 		g_gamedata.boundsstate = ST_SCAN
 	
 	g_gamedata.ClearExplosives()
-	for Explosive in GetEntityList(pHandle,offsets["ClientExplosionPackEntity"],0x108):
+	for Explosive in GetEntityList(pHandle,offsets["ClientExplosionPackEntity"],0xf0):
 		#print ("Explosive: " + hex(Explosive))
 		Transform = GetEntityTransform(pHandle,Explosive)
 		Team = mem[Explosive].read_uint32(0x4c0)
@@ -853,7 +854,7 @@ def Process(pHandle,cnt):
 		g_gamedata.AddExplosive(ExplosiveData)
 
 	g_gamedata.ClearGrenades()
-	for Grenade in (GetEntityList(pHandle,offsets["ClientProxyGrenadeEntity"],0x108)+GetEntityList(pHandle,offsets["ClientGrenadeEntity"],0x108)+GetEntityList(pHandle,offsets["ClientInteractableGrenadeEntity"],0x108)):
+	for Grenade in (GetEntityList(pHandle,offsets["ClientProxyGrenadeEntity"],0xf0)+GetEntityList(pHandle,offsets["ClientGrenadeEntity"],0xf0)+GetEntityList(pHandle,offsets["ClientInteractableGrenadeEntity"],0xf0)):
 		Transform = GetEntityTransform(pHandle,Grenade)
 		GrenadeData = GameGrenadeData()
 		GrenadeData.transform = Transform
@@ -892,7 +893,7 @@ def Process(pHandle,cnt):
 		
 	if (ShrinkingPlayArea):
 		if (not g_gamedata.infirestorm):
-			for model in GetEntityList(pHandle,offsets["ClientStaticModelEntity"],0x108):
+			for model in GetEntityList(pHandle,offsets["ClientStaticModelEntity"],0xf0):
 				name = mem[model](0x38)(0xA8).read_pstring(0x18)
 				if name == "artassets/props/gadgetcrate_01/gadgetcrate_01_200_paperfilling_Mesh":
 					fsobject = FSObjectData()
@@ -922,7 +923,7 @@ def Process(pHandle,cnt):
 		# lets just walk them 5 entities per render so we don't completely
 		# kill our fps. We don't need low latency for these
 		for n in range(5):
-			g_gamedata.LastLootPtr = GetNextEntity(pHandle,g_gamedata.LastLootPtr,offsets["ClientLootItemEntity"],flink_offset=0x108)
+			g_gamedata.LastLootPtr = GetNextEntity(pHandle,g_gamedata.LastLootPtr,offsets["ClientLootItemEntity"],flink_offset=0xf0)
 			if (g_gamedata.LastLootPtr!=0):
 				if g_gamedata.LastLootPtr not in g_gamedata.loots:
 					if (mem[g_gamedata.LastLootPtr].read_int32(0x238) != -1):
@@ -949,7 +950,7 @@ def Process(pHandle,cnt):
 		# lets just walk them 5 entities per render so we don't completely
 		# kill our fps. We don't need low latency for these		
 		for n in range(5):
-			g_gamedata.LastVestLootPtr = GetNextEntity(pHandle,g_gamedata.LastVestLootPtr,offsets["ClientArmorVestLootItemEntity"],flink_offset=0x108)
+			g_gamedata.LastVestLootPtr = GetNextEntity(pHandle,g_gamedata.LastVestLootPtr,offsets["ClientArmorVestLootItemEntity"],flink_offset=0xf0)
 			
 			if (g_gamedata.LastVestLootPtr!=0):
 				

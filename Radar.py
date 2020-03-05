@@ -554,12 +554,12 @@ def StartRadar():
 		
 	cnt = 0
 	while 1:
-		BFV.Process(phandle,cnt) # this accesses game memory for data
+		BFV.Process(phandle,cnt) # this accesses game memory for data 
 		rad.Update() # this renders data to radar
 		cnt += 1
 
 if __name__ == "__main__":
-	print ("[+] Tormund's External Radar v1.2.1 for Battlefield V (Chapter 6.0 Update - FEB 4, 2020)")
+	print ("[+] Tormund's External Radar v1.2.1 for Battlefield V (Chapter 6.2 Update - Mar 5, 2020)")
 
 	if (is_admin() == False):
 		print ("[+] Error: python (or commandline) must be ran with admin privledges")
