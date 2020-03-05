@@ -304,7 +304,7 @@ def build_offsets(pHandle):
 	offsets["GAMERENDERER"]                    = 0x1447BB9F8
 	offsets["CLIENT_GAME_CONTEXT"]             = 0x144716E28
 	offsets["OBJECTIVE_MANAGER"]               = 0x144655BA8 # FF 0D ? ? ? ? 48 8B 1D [? ? ? ?] 48 8B 43 10 48 8B 4B 08 48 3B C8 74 0E
-	offsets["CLIENTSHRINKINGPLAYAREA"]         = 0x144638110 # ? 8B F2 48 8B D9 ? 8B 35 [? ? ? ?] ? 85 F6 
+	offsets["CLIENTSHRINKINGPLAYAREA"]         = 0x144638110 # ? 8B F2 48 8B D9 ? 8B 35 [? ? ? ?] ? 85 F6
 	offsets["ClientSoldierEntity"]             = 0x144EEE510
 	offsets["ClientVehicleEntity"]             = 0x144DF9AF0
 	offsets["ClientSupplySphereEntity"]        = 0x144C3B820
