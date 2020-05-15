@@ -301,27 +301,29 @@ def build_offsets(pHandle):
 	offsets["Dx11EncBuffer"] = 0
 	offsets["TIMESTAMP"] = get_buildtime(pHandle)
 	
-	offsets["GAMERENDERER"]                    = 0x1447BB9F8
-	offsets["CLIENT_GAME_CONTEXT"]             = 0x144716E28
-	offsets["OBJECTIVE_MANAGER"]               = 0x144655BA8 # FF 0D ? ? ? ? 48 8B 1D [? ? ? ?] 48 8B 43 10 48 8B 4B 08 48 3B C8 74 0E
-	offsets["CLIENTSHRINKINGPLAYAREA"]         = 0x144638110 # ? 8B F2 48 8B D9 ? 8B 35 [? ? ? ?] ? 85 F6
-	offsets["ClientSoldierEntity"]             = 0x144EEE510
-	offsets["ClientVehicleEntity"]             = 0x144DF9AF0
-	offsets["ClientSupplySphereEntity"]        = 0x144C3B820
-	offsets["ClientCombatAreaTriggerEntity"]   = 0x144DFB1F0
-	offsets["ClientExplosionPackEntity"]       = 0x144EF3C60
-	offsets["ClientProxyGrenadeEntity"]        = 0x144EF3930
-	offsets["ClientGrenadeEntity"]             = 0x144EF3B50
-	offsets["ClientInteractableGrenadeEntity"] = 0x144CAD990
-	offsets["ClientCapturePointEntity"]        = 0x144C68C40
-	offsets["ClientLootItemEntity"]            = 0x144C323E0
-	offsets["ClientArmorVestLootItemEntity"]   = 0x144CA53E0
-	offsets["ClientStaticModelEntity"]         = 0x144DF2890
-	offsets["PROTECTED_THREAD"]                = 0x1447171D4
-	offsets["OBFUS_MGR_PTR_1"]                 = 0x14387F690
-	offsets["OBFUS_MGR_RET_1"]                 = 0x141643F58
-	offsets["OBFUS_MGR_DEC_FUNC"]              = 0x141601740
-	offsets["OBJECTIVE_VTBL"]                  = 0x14376DEB8
+	offsets["GAMERENDERER"]                    = 0x1447CBE78
+	offsets["CLIENT_GAME_CONTEXT"]             = 0x144727298
+	offsets["OBJECTIVE_MANAGER"]               = 0x1446661E0 # FF 0D ? ? ? ? 48 8B 1D [? ? ? ?] 48 8B 43 10 48 8B 4B 08 48 3B C8 74 0E
+	offsets["CLIENTSHRINKINGPLAYAREA"]         = 0x144648010 # ? 8B F2 48 8B D9 ? 8B 35 [? ? ? ?] ? 85 F6
+	offsets["ClientSoldierEntity"]             = 0x144F00270
+	offsets["ClientVehicleEntity"]             = 0x144E0B850
+	offsets["ClientSupplySphereEntity"]        = 0x144C4C4C0
+	offsets["ClientCombatAreaTriggerEntity"]   = 0x144E0CF50
+	offsets["ClientExplosionPackEntity"]       = 0x144F059C0
+	offsets["ClientProxyGrenadeEntity"]        = 0x144F05690
+	offsets["ClientGrenadeEntity"]             = 0x144F058B0
+	offsets["ClientInteractableGrenadeEntity"] = 0x144CC04A0
+	offsets["ClientCapturePointEntity"]        = 0x144C7B750
+	offsets["ClientLootItemEntity"]            = 0x144C42730
+	offsets["ClientArmorVestLootItemEntity"]   = 0x144CB7EF0
+	offsets["ClientStaticModelEntity"]         = 0x144E045F0
+	offsets["PROTECTED_THREAD"]                = 0x144727644
+	offsets["OBFUS_MGR_PTR_1"]                 = 0x14388CF90
+	offsets["OBFUS_MGR_RET_1"]                 = 0x14164BD28
+	offsets["OBFUS_MGR_DEC_FUNC"]              = 0x141609510
+	offsets["OBJECTIVE_VTBL"]                  = 0x14377BAF8
+
+	
 	return offsets
 
 def GetLocalPlayerList(pHandle):
