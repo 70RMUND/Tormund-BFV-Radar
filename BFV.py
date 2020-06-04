@@ -36,6 +36,21 @@ OD_ControlledState = 0x8C
 
 global offsets
 offsets = {}
+
+def isValid(addr):
+	return ((addr >= 0x10000) and (addr < 0x0000001000000000))
+	
+def isValidInGame(addr):
+	return ((addr >= 0x140000000) and (addr < 0x14FFFFFFF))
+	
+def numOfZeros(value):
+	tmp = value
+	ret = 0;
+	for i in range(8):
+		if (((tmp>>(i*8))&0xFF) == 0x00):
+			ret += 1
+	return ret
+
 		
 class PointerManager():
 	def __init__(self,pHandle):
@@ -74,29 +89,47 @@ class PointerManager():
 		ss = StackAccess(self.pHandle,self.mem[offsets["PROTECTED_THREAD"]].read_uint32(0))
 		while (1):
 			addr = -1
-			time.sleep(0.1)
+			time.sleep(0.01)
 			buf = ss.read()
-			addr = buf.find(b"\x12\x69\xa3\xd7\xef\x47\x84\x59")
-			if (addr==-1):
-				addr = buf.find(b"\xae\x15\x75\xa7\x6e\x35\xe4\x2c")
-			if (addr>-1):
-				for i in range(-160,160,8):
-					testptr = int.from_bytes(buf[addr+i:addr+8+i],"little")
-					if self.mem[testptr-0x120].read_uint64(0x0) == offsets["OBFUS_MGR_PTR_1"]:
-						OM = testptr-0x120
-						self.OBFUS_MGR = OM
-						break
-					elif self.mem[testptr].read_uint64(0x0) == offsets["OBFUS_MGR_PTR_1"]:
+			
+			for i in range(0,len(buf),8):
+				testptr = int.from_bytes(buf[i:i+8],"little")
+				if (isValid(testptr)):
+					if self.mem[testptr].read_uint64(0x0) == offsets["OBFUS_MGR_PTR_1"]:
 						OM = testptr
-						self.OBFUS_MGR = OM
+						self.OBFUS_MGR = testptr
 						break
-				if (OM>0): break
+
+			if (OM>0): break
 		ss.close()
 		print ("[+] Found ObfuscationMgr @ 0x%08x "%(OM))
 		api._cache_en = True
 		return OM
 		
 	def GetDx11Secret(self):
+		def TestDx11Secret(self, testkey):
+			mem = self.mem
+			typeinfo = offsets["ClientStaticModelEntity"]
+			
+			flink = mem[typeinfo].read_uint64(0x88)
+
+			ObfManager = self.OBFUS_MGR
+			HashTableKey = mem[typeinfo](0).me() ^ mem[ObfManager].read_uint64(0xE0)
+			
+			hashtable = ObfManager+0x78
+			EncryptionKey = self.hashtable_find(hashtable, HashTableKey)
+			
+			if (EncryptionKey == 0):
+				return 0
+				
+			EncryptionKey ^= testkey
+			ptr = PointerManager.decrypt_ptr(flink, EncryptionKey)
+			if (isValid(ptr)):
+				return True
+			else:
+				return False
+			
+			
 		api._cache_en = False
 		ss = StackAccess(self.pHandle,self.mem[offsets["PROTECTED_THREAD"]].read_uint32(0))
 		if (self.mem[self.OBFUS_MGR].read_uint64(0x100) != 0):
@@ -105,17 +138,14 @@ class PointerManager():
 			i = 0
 			while (1):
 				addr = -1
-				time.sleep(0.1)
+				time.sleep(0.01)
 				buf = ss.read()
 				addr = buf.find((offsets["OBFUS_MGR_RET_1"]).to_bytes(8, byteorder='little'))
-				if (addr>-1):
-					i=-120
-					if (int.from_bytes(buf[addr+i:addr+i+8],"little") == offsets["OBFUS_MGR"]):
-						i=-56
-						testptr = int.from_bytes(buf[addr+i:addr+8+i],"little")
-						if (testptr>0x100000000000000):
-							if (testptr == offsets["Dx11Secret"]):
-								continue
+				while (addr > -1):
+					i = 24
+					testptr = int.from_bytes(buf[addr+i:addr+i+8],"little")
+					if (TestDx11Secret(self,testptr)):
+						if (testptr != offsets["Dx11Secret"]):
 							offsets["Dx11Secret"] = testptr
 							api._cache_en = True
 							ss.close()
@@ -301,27 +331,27 @@ def build_offsets(pHandle):
 	offsets["Dx11EncBuffer"] = 0
 	offsets["TIMESTAMP"] = get_buildtime(pHandle)
 	
-	offsets["GAMERENDERER"]                    = 0x1447CBE78
-	offsets["CLIENT_GAME_CONTEXT"]             = 0x144727298
-	offsets["OBJECTIVE_MANAGER"]               = 0x1446661E0 # FF 0D ? ? ? ? 48 8B 1D [? ? ? ?] 48 8B 43 10 48 8B 4B 08 48 3B C8 74 0E
-	offsets["CLIENTSHRINKINGPLAYAREA"]         = 0x144648010 # ? 8B F2 48 8B D9 ? 8B 35 [? ? ? ?] ? 85 F6
-	offsets["ClientSoldierEntity"]             = 0x144F00270
-	offsets["ClientVehicleEntity"]             = 0x144E0B850
-	offsets["ClientSupplySphereEntity"]        = 0x144C4C4C0
-	offsets["ClientCombatAreaTriggerEntity"]   = 0x144E0CF50
-	offsets["ClientExplosionPackEntity"]       = 0x144F059C0
-	offsets["ClientProxyGrenadeEntity"]        = 0x144F05690
-	offsets["ClientGrenadeEntity"]             = 0x144F058B0
-	offsets["ClientInteractableGrenadeEntity"] = 0x144CC04A0
-	offsets["ClientCapturePointEntity"]        = 0x144C7B750
-	offsets["ClientLootItemEntity"]            = 0x144C42730
-	offsets["ClientArmorVestLootItemEntity"]   = 0x144CB7EF0
-	offsets["ClientStaticModelEntity"]         = 0x144E045F0
-	offsets["PROTECTED_THREAD"]                = 0x144727644
-	offsets["OBFUS_MGR_PTR_1"]                 = 0x14388CF90
-	offsets["OBFUS_MGR_RET_1"]                 = 0x14164BD28
-	offsets["OBFUS_MGR_DEC_FUNC"]              = 0x141609510
-	offsets["OBJECTIVE_VTBL"]                  = 0x14377BAF8
+	offsets["GAMERENDERER"]                    = 0x1447cdef8
+	offsets["CLIENT_GAME_CONTEXT"]             = 0x144729308
+	offsets["OBJECTIVE_MANAGER"]               = 0x144668230 # FF 0D ? ? ? ? 48 8B 1D [? ? ? ?] 48 8B 43 10 48 8B 4B 08 48 3B C8 74 0E
+	offsets["CLIENTSHRINKINGPLAYAREA"]         = 0x14464A020 # ? 8B F2 48 8B D9 ? 8B 35 [? ? ? ?] ? 85 F6
+	offsets["ClientSoldierEntity"]             = 0x144F02500
+	offsets["ClientVehicleEntity"]             = 0x144E0DAE0
+	offsets["ClientSupplySphereEntity"]        = 0x144C4E4C0
+	offsets["ClientCombatAreaTriggerEntity"]   = 0x144E0F1E0
+	offsets["ClientExplosionPackEntity"]       = 0x144F07C50
+	offsets["ClientProxyGrenadeEntity"]        = 0x144F07920
+	offsets["ClientGrenadeEntity"]             = 0x144F07B40
+	offsets["ClientInteractableGrenadeEntity"] = 0x144CC2600
+	offsets["ClientCapturePointEntity"]        = 0x144C7D8B0
+	offsets["ClientLootItemEntity"]            = 0x144C44730
+	offsets["ClientArmorVestLootItemEntity"]   = 0x144CBA050
+	offsets["ClientStaticModelEntity"]         = 0x144E06880
+	offsets["PROTECTED_THREAD"]                = 0x1447296B4
+	offsets["OBFUS_MGR_PTR_1"]                 = 0x14388F200 
+	offsets["OBFUS_MGR_RET_1"]                 = 0x1480C3107 # SIG: 48 31 F3 4C 89 74 24 ? 48 89 D8 EB 03
+	offsets["OBFUS_MGR_DEC_FUNC"]              = 0x141609EC0
+	offsets["OBJECTIVE_VTBL"]                  = 0x14377DD28
 
 	
 	return offsets
@@ -370,9 +400,6 @@ def GetEncKey(pHandle,typeinfo):
 	api._cache_en = cache_en	
 	print ("[+] Typeinfo: 0x%x Encryption Key: 0x%x"% (typeinfo,keystore[typeinfo]))
 	return keystore[typeinfo]
-	
-def isValid(addr):
-	return ((addr >= 0x10000) and (addr < 0x0000001000000000))
 
 def GetEntityList(pHandle,typeinfo,flink_offset=0x80):
 	elist = []
@@ -982,53 +1009,4 @@ def initialize(pHandle):
 	PAGE_FLR = 0xFFFFFFFFFFFFF000
 	PAGE_RWX = 0x40
 	offsets = build_offsets(pHandle)
-	
-	
 	return 
-	mem = MemAccess(pHandle)
-	ss = StackAccess(pHandle,mem[0x144A5AD18].read_uint32(0))
-	pm = PointerManager(pHandle)
-	
-	if (1):
-		while (1):
-			print("[+] pm.GetLocalPlayer() = 0x%016x (Dx11Secret: 0x%016x)"%(pm.GetLocalPlayer(),offsets["Dx11Secret"]))
-			time.sleep(3)
-			#offsets["Dx11Secret"] = 0x6e30c22d3faaa99b
-	
-	
-
-	print ("[+] Searching for Dx11Secret...")
-	addr = -1
-	OM = 0
-	i = 0
-	num = 0
-	while (1):
-		buf = ss.read()
-		addr = buf.find((0x148B98C7E).to_bytes(8, byteorder='little'))
-		if (addr>-1):
-		
-			if (int.from_bytes(buf[addr-120:addr-120+8],"little") == offsets["OBFUS_MGR"]):
-		
-				i=0
-				k = addr+i
-				print ("\n*** %d"%(num))
-				num +=1
-				for i in range(k-160,k+160,8):
-					if (i==k): print("[+] 0x%x ***"%int.from_bytes(buf[i:8+i],"little"))
-					else: print("[+] 0x%x "%int.from_bytes(buf[i:8+i],"little"))
-				time.sleep(2)
-			
-			
-			#testptr = int.from_bytes(buf[addr+i:addr+8+i],"little")
-			#if (testptr>0x100000000000):
-			#	print("[+] Dx11Secret: 0x%x"%testptr)
-			#	ss.close()
-			#	
-			#	k = addr+i-24
-			#	for i in range(k-80,k+80,8):
-			#		if (i==k): print("[+] 0x%x ***"%int.from_bytes(buf[i:8+i],"little"))
-			#		else: print("[+] 0x%x "%int.from_bytes(buf[i:8+i],"little"))
-			#	time.sleep(2)
-		addr = -1
-			
-	exit(1)
