@@ -124,6 +124,7 @@ class PointerManager():
 				
 			EncryptionKey ^= testkey
 			ptr = PointerManager.decrypt_ptr(flink, EncryptionKey)
+
 			if (isValid(ptr)):
 				return True
 			else:
@@ -131,6 +132,9 @@ class PointerManager():
 			
 			
 		api._cache_en = False
+		if (TestDx11Secret(self,offsets["Dx11Secret"])):
+			api._cache_en = True
+			return offsets["Dx11Secret"]
 		ss = StackAccess(self.pHandle,self.mem[offsets["PROTECTED_THREAD"]].read_uint32(0))
 		if (self.mem[self.OBFUS_MGR].read_uint64(0x100) != 0):
 			addr = -1
@@ -144,12 +148,14 @@ class PointerManager():
 				while (addr > -1):
 					i = 24
 					testptr = int.from_bytes(buf[addr+i:addr+i+8],"little")
+					#print (hex(testptr))
 					if (TestDx11Secret(self,testptr)):
 						if (testptr != offsets["Dx11Secret"]):
 							offsets["Dx11Secret"] = testptr
 							api._cache_en = True
 							ss.close()
 							return offsets["Dx11Secret"]
+					addr = buf.find((offsets["OBFUS_MGR_RET_1"]).to_bytes(8, byteorder='little'),addr+8)
 		else:
 			offsets["Dx11Secret"] = 0
 			api._cache_en = True
@@ -194,7 +200,7 @@ class PointerManager():
 		while 1:
 			first = mem[node].read_uint64(0x0)
 			second = mem[node].read_uint64(0x8)
-			next = mem[node].read_uint64(0x16)
+			next = mem[node].read_uint64(0x10)
 
 			if first == key:
 				#print ("Key: 0x%016x Node: 0x%016x"%(key^ mem[self.OBFUS_MGR].read_uint64(0xE0),node))
