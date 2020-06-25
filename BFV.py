@@ -337,10 +337,10 @@ def build_offsets(pHandle):
 	offsets["Dx11EncBuffer"] = 0
 	offsets["TIMESTAMP"] = get_buildtime(pHandle)
 	
-	offsets["GAMERENDERER"]                    = 0x1447cdef8
-	offsets["CLIENT_GAME_CONTEXT"]             = 0x144729308
-	offsets["OBJECTIVE_MANAGER"]               = 0x144668230 # FF 0D ? ? ? ? 48 8B 1D [? ? ? ?] 48 8B 43 10 48 8B 4B 08 48 3B C8 74 0E
-	offsets["CLIENTSHRINKINGPLAYAREA"]         = 0x14464A020 # ? 8B F2 48 8B D9 ? 8B 35 [? ? ? ?] ? 85 F6
+	offsets["GAMERENDERER"]                    = 0x1447cdeb8
+	offsets["CLIENT_GAME_CONTEXT"]             = 0x1447292f8
+	offsets["OBJECTIVE_MANAGER"]               = 0x144668220 # FF 0D ? ? ? ? 48 8B 1D [? ? ? ?] 48 8B 43 10 48 8B 4B 08 48 3B C8 74 0E
+	offsets["CLIENTSHRINKINGPLAYAREA"]         = 0x14464A010 # ? 8B F2 48 8B D9 ? 8B 35 [? ? ? ?] ? 85 F6
 	offsets["ClientSoldierEntity"]             = 0x144F02500
 	offsets["ClientVehicleEntity"]             = 0x144E0DAE0
 	offsets["ClientSupplySphereEntity"]        = 0x144C4E4C0
@@ -353,10 +353,10 @@ def build_offsets(pHandle):
 	offsets["ClientLootItemEntity"]            = 0x144C44730
 	offsets["ClientArmorVestLootItemEntity"]   = 0x144CBA050
 	offsets["ClientStaticModelEntity"]         = 0x144E06880
-	offsets["PROTECTED_THREAD"]                = 0x1447296B4
+	offsets["PROTECTED_THREAD"]                = 0x1447296A4
 	offsets["OBFUS_MGR_PTR_1"]                 = 0x14388F200 
-	offsets["OBFUS_MGR_RET_1"]                 = 0x1480C3107 # SIG: 48 31 F3 4C 89 74 24 ? 48 89 D8 EB 03
-	offsets["OBFUS_MGR_DEC_FUNC"]              = 0x141609EC0
+	offsets["OBFUS_MGR_RET_1"]                 = 0x147B69257 # SIG: 48 31 F3 4C 89 74 24 ? 48 89 D8 4C 89 74 24 ? (old: 48 31 F3 4C 89 74 24 ? 48 89 D8 EB 03)
+	offsets["OBFUS_MGR_DEC_FUNC"]              = 0x141609A80
 	offsets["OBJECTIVE_VTBL"]                  = 0x14377DD28
 
 	
