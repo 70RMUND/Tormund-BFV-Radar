@@ -56,7 +56,7 @@ class PointerManager():
 	def __init__(self,pHandle):
 		self.mem = MemAccess(pHandle)
 		self.pHandle = pHandle
-		
+		self.gpumemptr = 0
 		self.OBFUS_MGR = 0
 		if (offsets["OBFUS_MGR"] == 0):
 			offsets["OBFUS_MGR"] = self.GetObfuscationMgr()
@@ -89,7 +89,7 @@ class PointerManager():
 		ss = StackAccess(self.pHandle,self.mem[offsets["PROTECTED_THREAD"]].read_uint32(0))
 		while (1):
 			addr = -1
-			time.sleep(0.01)
+			time.sleep(0.001)
 			buf = ss.read()
 			
 			for i in range(0,len(buf),8):
@@ -135,22 +135,38 @@ class PointerManager():
 		if (TestDx11Secret(self,offsets["Dx11Secret"])):
 			api._cache_en = True
 			return offsets["Dx11Secret"]
+		
+		if (offsets["GPUMemPtr"]):
+			for offset in range(0,0x400,0x100):
+				testptr = self.mem[offsets["GPUMemPtr"]].read_uint64(offset)
+				if (testptr):
+					if (TestDx11Secret(self,testptr)):
+						if (testptr != offsets["Dx11Secret"]):
+							print ("[+] Found Dx11 key scraping GPU mem @ 0x%x"%(offsets["GPUMemPtr"]+offset))
+							offsets["Dx11Secret"] = testptr
+							api._cache_en = True
+							return offsets["Dx11Secret"]
+			offsets["GPUMemPtr"] = 0
+			
+			
 		ss = StackAccess(self.pHandle,self.mem[offsets["PROTECTED_THREAD"]].read_uint32(0))
 		if (self.mem[self.OBFUS_MGR].read_uint64(0x100) != 0):
 			addr = -1
 			OM = 0
 			i = 0
+			print("[+] Locating initial Dx11 key location, please wait...")
 			while (1):
 				addr = -1
-				time.sleep(0.01)
 				buf = ss.read()
 				addr = buf.find((offsets["OBFUS_MGR_RET_1"]).to_bytes(8, byteorder='little'))
 				while (addr > -1):
-					i = 24
-					testptr = int.from_bytes(buf[addr+i:addr+i+8],"little")
-					#print (hex(testptr))
+					i = 0x38
+					gpumem = int.from_bytes(buf[addr+i:addr+i+8],"little")
+					testptr = self.mem[gpumem].read_uint64(0x0)
 					if (TestDx11Secret(self,testptr)):
 						if (testptr != offsets["Dx11Secret"]):
+							offsets["GPUMemPtr"] = gpumem&0xFFFFFFFFFFFFFC00
+							print ("[+] Found Initial Dx11 key scraping GPU mem @ 0x%x"%(offsets["GPUMemPtr"]))
 							offsets["Dx11Secret"] = testptr
 							api._cache_en = True
 							ss.close()
@@ -183,6 +199,7 @@ class PointerManager():
 				offsets["Dx11Secret"] = 0x598447EFD7A36912
 				print ("[+] Static key loaded, root key set to 0x%x"%(offsets["Dx11Secret"]))
 				offsets["CryptMode"] = 0
+				self.gpumemptr = 0
 		api._cache_en = True
 		
 	def hashtable_find(self, table, key):
@@ -204,7 +221,7 @@ class PointerManager():
 
 			if first == key:
 				#print ("Key: 0x%016x Node: 0x%016x"%(key^ mem[self.OBFUS_MGR].read_uint64(0xE0),node))
-				return second		
+				return second       
 			elif (next == 0):
 				return 0
 				
@@ -333,31 +350,32 @@ def build_offsets(pHandle):
 	mem = MemAccess(pHandle)
 	offsets["OBFUS_MGR"] = 0;
 	offsets["CryptMode"] = 0
+	offsets["GPUMemPtr"] = 0
 	offsets["Dx11Secret"] = 0x598447EFD7A36912
 	offsets["Dx11EncBuffer"] = 0
 	offsets["TIMESTAMP"] = get_buildtime(pHandle)
 	
-	offsets["GAMERENDERER"]                    = 0x1447cdeb8
-	offsets["CLIENT_GAME_CONTEXT"]             = 0x1447292f8
-	offsets["OBJECTIVE_MANAGER"]               = 0x144668220 # FF 0D ? ? ? ? 48 8B 1D [? ? ? ?] 48 8B 43 10 48 8B 4B 08 48 3B C8 74 0E
-	offsets["CLIENTSHRINKINGPLAYAREA"]         = 0x14464A010 # ? 8B F2 48 8B D9 ? 8B 35 [? ? ? ?] ? 85 F6
-	offsets["ClientSoldierEntity"]             = 0x144F02500
-	offsets["ClientVehicleEntity"]             = 0x144E0DAE0
-	offsets["ClientSupplySphereEntity"]        = 0x144C4E4C0
-	offsets["ClientCombatAreaTriggerEntity"]   = 0x144E0F1E0
-	offsets["ClientExplosionPackEntity"]       = 0x144F07C50
-	offsets["ClientProxyGrenadeEntity"]        = 0x144F07920
-	offsets["ClientGrenadeEntity"]             = 0x144F07B40
-	offsets["ClientInteractableGrenadeEntity"] = 0x144CC2600
-	offsets["ClientCapturePointEntity"]        = 0x144C7D8B0
-	offsets["ClientLootItemEntity"]            = 0x144C44730
-	offsets["ClientArmorVestLootItemEntity"]   = 0x144CBA050
-	offsets["ClientStaticModelEntity"]         = 0x144E06880
-	offsets["PROTECTED_THREAD"]                = 0x1447296A4
-	offsets["OBFUS_MGR_PTR_1"]                 = 0x14388F200 
-	offsets["OBFUS_MGR_RET_1"]                 = 0x147B69257 # SIG: 48 31 F3 4C 89 74 24 ? 48 89 D8 4C 89 74 24 ? (old: 48 31 F3 4C 89 74 24 ? 48 89 D8 EB 03)
-	offsets["OBFUS_MGR_DEC_FUNC"]              = 0x141609A80
-	offsets["OBJECTIVE_VTBL"]                  = 0x14377DD28
+	offsets["GAMERENDERER"]                    = 0x1447f6fb8
+	offsets["CLIENT_GAME_CONTEXT"]             = 0x1447522a8
+	offsets["OBJECTIVE_MANAGER"]               = 0x14468B8B0 # FF 0D ? ? ? ? 48 8B 1D [? ? ? ?] 48 8B 43 10 48 8B 4B 08 48 3B C8 74 0E
+	offsets["CLIENTSHRINKINGPLAYAREA"]         = 0x1446645A0 # ? 8B F2 48 8B D9 ? 8B 35 [? ? ? ?] ? 85 F6
+	offsets["ClientSoldierEntity"]             = 0x144F2EF50
+	offsets["ClientVehicleEntity"]             = 0x144E3A170
+	offsets["ClientSupplySphereEntity"]        = 0x144C54550
+	offsets["ClientCombatAreaTriggerEntity"]   = 0x144E3B870
+	offsets["ClientExplosionPackEntity"]       = 0x144F346A0
+	offsets["ClientProxyGrenadeEntity"]        = 0x144F34370
+	offsets["ClientGrenadeEntity"]             = 0x144F34590
+	offsets["ClientInteractableGrenadeEntity"] = 0x144C5BCB0
+	offsets["ClientCapturePointEntity"]        = 0x144C8DD30
+	offsets["ClientLootItemEntity"]            = 0x144C473A0
+	offsets["ClientArmorVestLootItemEntity"]   = 0x144C89090
+	offsets["ClientStaticModelEntity"]         = 0x144E32F10
+	offsets["PROTECTED_THREAD"]                = 0x144752654
+	offsets["OBFUS_MGR_PTR_1"]                 = 0x1438B46E0 
+	offsets["OBFUS_MGR_RET_1"]                 = 0x147E2FEB6
+	offsets["OBFUS_MGR_DEC_FUNC"]              = 0x14161F4C0
+	offsets["OBJECTIVE_VTBL"]                  = 0x1437A7E68
 
 	
 	return offsets
@@ -403,7 +421,7 @@ def GetEncKey(pHandle,typeinfo):
 	
 	keystore[typeinfo] = key
 	
-	api._cache_en = cache_en	
+	api._cache_en = cache_en    
 	print ("[+] Typeinfo: 0x%x Encryption Key: 0x%x"% (typeinfo,keystore[typeinfo]))
 	return keystore[typeinfo]
 
@@ -448,7 +466,7 @@ def GetHandle():
 				return True
 			if reply[:1] == 'n':
 				return False
-	pid = api.get_processid_by_name("bfv.exe")	
+	pid = api.get_processid_by_name("bfv.exe")  
 	if type(pid) == type(None):
 		return 0
 	pHandle = HANDLE(api.OpenProcess(DWORD(0x1f0fff),False,DWORD(pid)))
@@ -816,7 +834,7 @@ def Process(pHandle,cnt):
 		TeamState = mem[UIObj].read_uint32(OD_TeamState)
 		ControlledState = mem[UIObj].read_uint32(OD_ControlledState)
 		
-		UIObjective = UIObjectiveData()	
+		UIObjective = UIObjectiveData() 
 		UIObjective.pointer = UIObj
 		UIObjective.transform = Transform
 		UIObjective.shortname = ShortName
@@ -902,7 +920,7 @@ def Process(pHandle,cnt):
 		SupplyName = mem[Supply](0x38).read_pstring(0xB8)
 		pos = mem[Supply].read_vec4(0x100)
 		#if pos == 0:
-		#	continue
+		#   continue
 		
 		#print ("0x%x (%s)"% (Supply,SupplyName))
 		#print("%f %f %f %f"%(pos[0],pos[1],pos[2],pos[3]))
@@ -983,7 +1001,7 @@ def Process(pHandle,cnt):
 				
 		# So because python is slow and there are a lot of lootentities
 		# lets just walk them 5 entities per render so we don't completely
-		# kill our fps. We don't need low latency for these		
+		# kill our fps. We don't need low latency for these     
 		for n in range(5):
 			g_gamedata.LastVestLootPtr = GetNextEntity(pHandle,g_gamedata.LastVestLootPtr,offsets["ClientArmorVestLootItemEntity"],flink_offset=0xf0)
 			
