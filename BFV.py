@@ -372,10 +372,10 @@ def build_offsets(pHandle):
 	offsets["ClientArmorVestLootItemEntity"]   = 0x144C89090
 	offsets["ClientStaticModelEntity"]         = 0x144E32F10
 	offsets["PROTECTED_THREAD"]                = 0x144752654
-	offsets["OBFUS_MGR_PTR_1"]                 = 0x1438B46E0 
-	offsets["OBFUS_MGR_RET_1"]                 = 0x147E2FEB6
-	offsets["OBFUS_MGR_DEC_FUNC"]              = 0x14161F4C0
-	offsets["OBJECTIVE_VTBL"]                  = 0x1437A7E68
+	offsets["OBFUS_MGR_PTR_1"]                 = 0x1438B46D0
+	offsets["OBFUS_MGR_RET_1"]                 = 0x147E207B6
+	offsets["OBFUS_MGR_DEC_FUNC"]              = 0x14161F880
+	offsets["OBJECTIVE_VTBL"]                  = 0x1437A7EF8
 
 	
 	return offsets
