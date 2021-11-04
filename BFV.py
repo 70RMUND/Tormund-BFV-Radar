@@ -373,7 +373,7 @@ def build_offsets(pHandle):
 	offsets["ClientStaticModelEntity"]         = 0x144E32F10
 	offsets["PROTECTED_THREAD"]                = 0x144752654
 	offsets["OBFUS_MGR_PTR_1"]                 = 0x1438B46D0
-	offsets["OBFUS_MGR_RET_1"]                 = 0x147E207B6
+	offsets["OBFUS_MGR_RET_1"]                 = 0x147E38436
 	offsets["OBFUS_MGR_DEC_FUNC"]              = 0x14161F880
 	offsets["OBJECTIVE_VTBL"]                  = 0x1437A7EF8
 
